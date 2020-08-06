@@ -1,5 +1,6 @@
 if not fight then
 	fight = {}
+	rpg_dropped_items = {}
 end
 
 RPGCHAT = -1001457976044
@@ -38,11 +39,21 @@ function reloadStats()
 end
 
 function selectModifier(itemObj, canAdd)
+	if not itemObj then 
+		local canAdd = {}
+		for i,b in pairs(attributes) do 
+			if math.random(0, 1000) <= b.chance then 
+				canAdd[#canAdd+1] = i
+			end 
+		end
+		return makeAttribute(canAdd[math.random(1, #canAdd)])
+	end
 	local cad = canAdd[math.random(1, #canAdd)]
 	for x=1,5 do 
 		
 		local found = false
-		for i=1, items[itemObj[1]].slot do 
+
+		for i=1, itemObj.slots do 
 			if itemObj.attr[i] ~= 0 and itemObj.attr[i].i == cad then
 				found = true
 				break
@@ -65,7 +76,10 @@ function addModifier(itemObj)
 				canAdd[#canAdd+1] = i
 			end 
 		end
-		for i=1, items[itemObj[1]].slot do 
+		if not itemObj.slots then 
+			itemObj.slots =items[itemObj[1]].slot 
+		end
+		for i=1, itemObj.slots do 
 			local cad = selectModifier(itemObj, canAdd)
 			if itemObj.attr[i].i == 0 then 
 				
@@ -78,10 +92,65 @@ function addModifier(itemObj)
 	return false, "err"
 end
 
+function giveLuckyModifier(itemObj)
+	if itemObj.attr then 
+		if not itemObj.slots then 
+			itemObj.slots =items[itemObj[1]].slot 
+		end
+		for i=1, itemObj.slots do 
+			if itemObj.attr[i].i == 0 then 				
+				local mod = math.random(1, #attributes)
+				itemObj.attr[i] = makeAttribute(mod)
+				return true, "Added modifier: "..genAttrDesc(itemObj.attr[i]) 
+			end
+		end
+		return false, "No extra slots left"
+	end
+	return false, "err"
+end
+
+function rerollSlots(itemObj)
+	if itemObj.attr then 
+		if not itemObj.slots then 
+			itemObj.slots =items[itemObj[1]].slot 
+		end
+		local cnt = itemObj.slots 
+		itemObj.slots, maxSlot = makeSlots(itemObj[1])
+		
+		if cnt >= maxSlot then 
+			return false, "Item is already on max slots!"
+		end
+
+		if itemObj.slots == cnt and cnt > 1 then 
+			itemObj.slots = itemObj.slots -1
+		end
+
+		if cnt > itemObj.slots then 
+			for i=1, cnt do 
+				if i > itemObj.slots then 
+					itemObj.attr[i] = nil
+				end
+			end
+		else 
+			for i=1, itemObj.slots do 
+				if not itemObj.attr[i] then 				
+					itemObj.attr[i] = blankAttr()
+				end
+			end
+		end
+		return true, "You item now have "..itemObj.slots.." slots! (Max: "..maxSlot..")\n"..renderItem(itemObj)
+	end
+	return false, "err"
+end
+
+
 function removeModifier(itemObj)
 	if itemObj.attr then 
 		local can = {}
-		for i=1, items[itemObj[1]].slot do 
+		if not itemObj.slots then 
+			itemObj.slots =items[itemObj[1]].slot 
+		end
+		for i=1, itemObj.slots do 
 			if itemObj.attr[i].i ~= 0 then 
 				can[#can+1] = i
 				print("ATTR "..i,Dump(itemObj.attr[i]))
@@ -111,7 +180,10 @@ function populateModifiers(itemObj)
 				canAdd[#canAdd+1] = i
 			end 
 		end
-		for i=1, items[itemObj[1]].slot do 
+		if not itemObj.slots then 
+			itemObj.slots =items[itemObj[1]].slot 
+		end
+		for i=1, itemObj.slots do 
 			--if itemObj.attr[i].i == 0 then 
 				local cad = selectModifier(itemObj, canAdd)
 				itemObj.attr[i] = makeAttribute(cad)
@@ -127,28 +199,28 @@ end
 
 
 items = {
-	[1] = {stock=1, name = "🍎", work = function(a, c) a.h = a.h+20 gainExp(a, 5,nil, "APPL") return {true, "Restored +20 life", 1} end 				, desc = "Restore +20 HP +5 EXP"		, prob=500, price=25, stack=true},
-	[2] = {stock=1, name = "🧀", work = function(a, c) a.h = a.h+100 return {true,"Restored +100 life", 1} end 			, desc = "Restore +100 HP"		, prob=400, price=40, stack=true},
-	[3] = {stock=1, name = "🍰", work = function(a, c) a.h = a.h+500 return {true,"Restored +500 life", 1} end 			, desc = "Restore +500 HP"		, prob=300, price=200, stack=true},
-	[4] = {stock=1, name = "🥇", work = function(a, c) gainExp(a, 200,nil, "MED") return {true,"+200 Exp", 1} end 					, desc = " +200 EXP on use"		, prob=20,	price=3000, stack=true},
+	[1] = {stock=1, name = "🍎", work = function(a, c) a.h = a.h+20 gainExp(a, 5,nil, "APPL") return {true, "Restored +20 life", 1} end 				, desc = "Restore +20 HP +5 EXP"		, prob=50000, price=25, stack=true},
+	[2] = {stock=1, name = "🧀", work = function(a, c) a.h = a.h+100 return {true,"Restored +100 life", 1} end 			, desc = "Restore +100 HP"		, prob=40000, price=40, stack=true},
+	[3] = {stock=1, name = "🍰", work = function(a, c) a.h = a.h+500 return {true,"Restored +500 life", 1} end 			, desc = "Restore +500 HP"		, prob=3000, price=200, stack=true},
+	[4] = {stock=1, name = "🥇", work = function(a, c) gainExp(a, 200,nil, "MED") return {true,"+200 Exp", 1} end 					, desc = " +200 EXP on use"		, prob=200,	price=3000, stack=true},
 	
-	[5] = {craft=removeModifier,stock=1, name = "🍺", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Remove a random modifier of a item"		, prob=240,	price=650, stack=true},
-	[6] = {craft=addModifier,stock=1, name = "🥃", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Add a random modifier to a item"		    , prob=240,	price=650, stack=true},
+	[5] = {craft=removeModifier,stock=1, name = "🍺", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Remove a random modifier of a item"		, prob=2400,	price=650, stack=true},
+	[6] = {craft=addModifier,stock=1, name = "🥃", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Add a random modifier to a item"		    , prob=2400,	price=650, stack=true},
 	
-	[7] = {stock=1,	name = "🍆", work = function(a, c) a.h = a.h+5000 return {true,"Restored +1000 life", 1} end 			, desc = "Restored +5000 life"	, prob=140,	price=2000, stack=true},
-	[8] = {stock=1, name = "🥈", work = function(a, c) gainExp(a, 50,nil, "MED2") return {true,"+50 Exp", 1} end 						, desc = " +50 EXP on use"			, prob=50, price=1000, stack=true},
-	[9] = {stock=1, name = "🥉", work = function(a, c) gainExp(a, 20,nil, "MED3") return {true,"+20 Exp", 1} end 						, desc = " +20 EXP on use"			, prob=40, price=700, stack=true},
-	[10] = {stock=1, name = "⚔️", work = function(a, c) if (c < a.ea) then return{false, "you need %d items", a.ea} end a.ea = a.ea+1 return {true,"+1 ATK", a.ea-1} end 						, desc = "+1 ATK permamently (each use cost more)"					, prob=90		, price=1000, stack=true},
-	[11] = {stock=1, name = "🛡", work = function(a, c) if (c < a.ed) then return{false, "you need %d items", a.ed} end a.ed = a.ed+1 return {true,"+1 DEF", a.ed-1} end 						, desc = "+1 DEF permamently (each use cost more)"						, prob=90	, price=1000, stack=true},
-	[13] = {name = "📝", work = function(a, c) a.d = a.d-1 a.a = a.a-1 a.s = a.s+2 return {true,"-1 ATK -1 DEF +2 Skill", 1} end 	, desc = "Remove 1 atk and def and give +2 skill pts"		, prob=150, price=3000, stack=true},
-	[12] = {name = "🎁", work = function(a, c) local id = math.random(1, 19); if math.random(0,1000) < 50 then id = 47 end addItem(a, id, 1) return {true,"You found a "..items[id].name, 1} end 	, desc = "Add a random item"		, prob=100, price=0, stack=true},
-	[14] = {stock=1, name = "♻️", work = function(a, c) resetRpg(a) return {true,"All stats reseted. Nothing in return but your skill pts", 1} end,  desc = "RESET ALL STATS!!"		, prob=0, price=10, stack=true},
-	[15] = {stock=1, name = "☕️", work = function(a, c) if (c < a.ee) then return{false, "you need %d items", a.ee} end a.ee = a.ee+1 return {true,"+1 AGI", a.ee-1} end 					, desc = "+1 AGI permamently (each use cost more)"						, prob=90, price=1000, stack=true},
-	[16] = {stock=1, name = "💉", work = function(a, c) local n = math.floor(a.ev/4) if (c < n) then return{false, "you need %d items", n} end a.ev = a.ev+4 return {true,"+4 LIFE", n-1} end 						, desc = "+4 LIFE permamently (each use cost more)"							, prob=90, price=1000, stack=true},
-	[17] = {stock=1, name = "🔝", work = function(a, c) a.s = a.s+1 return {true,"+1 SKILL POINT", 1} end 				, desc = "+1 SKILL POINT permamently"					, prob=1, price=3000, nore=true, stack=true},
-	[18] = {name = "💳", work = function(a, c) a.h = 1 local mon = math.random(100,500) addGold(a, mon) return {true,"Life set to 1. Won "..formatMoney(mon), 1} end 				, desc = "Set your life to 0, Gets money instead"					, prob=150, price=0, stack=true},
+	[7] = {stock=1,	name = "🍆", work = function(a, c) a.h = a.h+5000 return {true,"Restored +1000 life", 1} end 			, desc = "Restored +5000 life"	, prob=1400,	price=2000, stack=true},
+	[8] = {stock=1, name = "🥈", work = function(a, c) gainExp(a, 50,nil, "MED2") return {true,"+50 Exp", 1} end 						, desc = " +50 EXP on use"			, prob=500, price=1000, stack=true},
+	[9] = {stock=1, name = "🥉", work = function(a, c) gainExp(a, 20,nil, "MED3") return {true,"+20 Exp", 1} end 						, desc = " +20 EXP on use"			, prob=400, price=700, stack=true},
+	[10] = {stock=1, name = "⚔️", work = function(a, c) if (c < a.ea) then return{false, "you need %d items", a.ea} end a.ea = a.ea+1 return {true,"+1 ATK", a.ea-1} end 						, desc = "+1 ATK permamently (each use cost more)"					, prob=900		, price=1000, stack=true},
+	[11] = {stock=1, name = "🛡", work = function(a, c) if (c < a.ed) then return{false, "you need %d items", a.ed} end a.ed = a.ed+1 return {true,"+1 DEF", a.ed-1} end 						, desc = "+1 DEF permamently (each use cost more)"						, prob=900	, price=1000, stack=true},
+	[13] = {name = "📝", work = function(a, c) a.d = a.d-1 a.a = a.a-1 a.s = a.s+2 return {true,"-1 ATK -1 DEF +2 Skill", 1} end 	, desc = "Remove 1 atk and def and give +2 skill pts"		, prob=1500, price=3000, stack=true},
+	[12] = {name = "🎁", work = function(a, c) local id = nonequip[math.random(1,#nonequip)] addItem(a, id, 1) return {true,"You found a "..items[id].name, 1} end 	, desc = "Add a random item"		, prob=1000, price=0, stack=true},
+	[14] = {stock=1, name = "♻️", work = function(a, c) resetRpg(a) return {true,"All stats reseted. Nothing in return but your skill pts", 1} end,  desc = "RESET ALL STATS!!"		, prob=00, price=10, stack=true},
+	[15] = {stock=1, name = "☕️", work = function(a, c) if (c < a.ee) then return{false, "you need %d items", a.ee} end a.ee = a.ee+1 return {true,"+1 AGI", a.ee-1} end 					, desc = "+1 AGI permamently (each use cost more)"						, prob=900, price=1000, stack=true},
+	[16] = {stock=1, name = "💉", work = function(a, c) local n = math.floor(a.ev/4) if (c < n) then return{false, "you need %d items", n} end a.ev = a.ev+4 return {true,"+4 LIFE", n-1} end 						, desc = "+4 LIFE permamently (each use cost more)"							, prob=900, price=1000, stack=true},
+	[17] = {stock=1, name = "🔝", work = function(a, c) a.s = a.s+1 return {true,"+1 SKILL POINT", 1} end 				, desc = "+1 SKILL POINT permamently"					, prob=10, price=3000, nore=true, stack=true},
+	[18] = {name = "💳", work = function(a, c) a.h = 1 local mon = math.random(100,500) addGold(a, mon) return {true,"Life set to 1. Won "..formatMoney(mon), 1} end 				, desc = "Set your life to 0, Gets money instead"					, prob=1500, price=0, stack=true},
 	
-	[19] = {craft=populateModifiers,stock=1, name = "🍷", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Reroll all modifiers of a item"		    , prob=240,	price=650, stack=true},
+	[19] = {craft=populateModifiers,stock=1, name = "🍷", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Reroll all modifiers of a item"		    , prob=2400,	price=650, stack=true},
 	
 
 
@@ -159,20 +231,33 @@ items = {
 		bot.sendMessage(RPGCHAT, "@"..nm.." found a <b>"..items[id].name..(items[it[1]].desc or items[it[1]].genDesc(it)).."</b> in a 📦", "HTML")
 		return {true,"You found a "..items[id].name..(items[it[1]].desc or items[it[1]].genDesc(it)).."\nUse /rpgequip to equip\nUse /rpgcraft to craft the slots", 1}
 
-	end 		, desc = "Gives a random equipment."		    , prob=0,	price=0, stack=false},
+	end 		, desc = "Gives a random equipment."		    , prob=00,	price=0, stack=false},
+
+
 	[48] = {stock=1, name = "🚽", work = function(a, c, nm) 
 		local id = math.random(49, 52); 
 		local it = addItem(a, id, 1) 
 		bot.sendMessage(RPGCHAT, "@"..nm.." found a <b>"..items[id].name..(items[it[1]].desc or items[it[1]].genDesc(it)).."</b> in a 🚽", "HTML")
 		return {true,"You found a "..items[id].name..(items[it[1]].desc or items[it[1]].genDesc(it)).."\nUse /rpgequip to equip\nUse /rpgcraft to craft the slots", 1}
 
-	end 		, desc = "Gives a random equipment."		    , prob=0,	price=0, stack=false},
+	end 		, desc = "Gives a random equipment."		    , prob=00,	price=0, stack=false},
 	
  
+	[60] = {craft=giveLuckyModifier,stock=1, name = "🍾", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Add a lucky modifier"		, prob=10,	price=15000, stack=true},
+	[61] = {craft=rerollSlots,stock=1, name = "🍵", work = function(a, c) return {false,"Use /rpgcraft to use this item", 1} end 		, desc = "Reroll the amount of slots in a item"		, prob=2400,	price=600, stack=true},
+	
+	[62] = {stock=1, name = "🥣", work = function(a, c, nm) 
+		spawnManaPool(nm)
+		return {true,"You spawned a mana pool at the main chat!", 1}
+
+	end 	, desc = "Spawn a mana pool in the main chat"		    , prob=10,	price=100, stack=true},	
 
 
 	used = {}
 }
+
+droppable = {}
+
 --[[
 			helmet 1
 			armor = 2
@@ -220,55 +305,64 @@ SLOT_NECKLACE=7
 SLOT_FIRST  = SLOT_HELMET
 SLOT_LAST	= SLOT_NECKLACE
 
+maxslots = {
+	[SLOT_HELMET] = 5,
+	[SLOT_ARMOR] = 5,
+	[SLOT_WEAPON] = 6,
+	[SLOT_BOOTS] = 4,
+	[SLOT_RING] = 5,
+	[SLOT_NECKLACE] = 5,
+	[SLOT_LEGS] = 4,
+}
 
 equips = {
 	[SLOT_HELMET] = {
-		{id=20, name="⛑", slot=2, chance=12},
-		{id=21, name="👺", slot=3, chance=8},
-		{id=22, name="👑", slot=4, chance=4},
-		{id=23, name="🕶", slot=1, chance=16},
-		{id=24, name="🎀", slot=2, chance=12},
+		{id=20, name="⛑", slot=2, chance=80, attr=2},
+		{id=21, name="👺", slot=3, chance=40, attr=40},
+		{id=22, name="👑", slot=4, chance=10, attr=22},
+		{id=23, name="🕶", slot=1, chance=100, attr=37},
+		{id=24, name="🎀", slot=2, chance=80, attr=12},
 	},
 	[SLOT_ARMOR] = {
-		{id=25, name="🧥", slot=2, chance=12},
-		{id=26, name="👗", slot=3, chance=8},
-		{id=27, name="👘", slot=2, chance=12},
-		{id=28, name="👙", slot=4, chance=4},
+		{id=25, name="🧥", slot=2, chance=80, attr=12},
+		{id=26, name="👗", slot=3, chance=40, attr=37},
+		{id=27, name="👘", slot=2, chance=80, attr=2},
+		{id=28, name="👙", slot=4, chance=20, attr=22},
 	},
 	[SLOT_WEAPON] = {
-		{id=29, name="🌂", slot=2, chance=12},
-		{id=30, name="🦴", slot=1, chance=12},
-		{id=31, name="🥕", slot=2, chance=12},
-		{id=32, name="🥄", slot=1, chance=16},
-		{id=33, name="🍡", slot=3, chance=8},
-		{id=34, name="🍢", slot=3, chance=8},
-		{id=35, name="🗡", slot=2, chance=12},
-		{id=36, name="🔱", slot=4, chance=4},
-		{id=37, name="🧷", slot=6, chance=1},
+		{id=29, name="🌂", slot=2, chance=50, attr=8},
+		{id=30, name="🦴", slot=1, chance=100, attr=24},
+		{id=31, name="🥕", slot=2, chance=50, attr=27},
+		{id=32, name="🥄", slot=1, chance=80, attr=31},
+		{id=33, name="🍡", slot=3, chance=20, attr=43},
+		{id=34, name="🍢", slot=3, chance=20, attr=40},
+		{id=35, name="🗡", slot=2, chance=50, atrr=20},
+		{id=36, name="🔱", slot=4, chance=20, attr=10},
+		{id=37, name="🧷", slot=6, chance=5, attr=5},
 		--'🔨⛏'
 	},
 	[SLOT_BOOTS] = {
-		{id=38, name="🥾", slot=2, chance=12},
-		{id=39, name="🧦", slot=1, chance=16},
-		{id=40, name="👠", slot=2, chance=12},
-		{id=41, name="👢", slot=3, chance=8},
+		{id=38, name="🥾", slot=2, chance=80, attr=2},
+		{id=39, name="🧦", slot=1, chance=100, attr=22},
+		{id=40, name="👠", slot=2, chance=80, attr=12},
+		{id=41, name="👢", slot=3, chance=20, attr=37},
 
 	},
 	[SLOT_RING] = {
-		{id=42, name="💍", slot=3, new = function() return {makeAttribute(3),blankAttr(),blankAttr()} end, chance=8},
-		{id=43, name="⚙️", slot=3, new = function() return {makeAttribute(7),blankAttr(),blankAttr()} end, chance=8},
-		{id=44, name="🍩", slot=3, new = function() return {makeAttribute(20),blankAttr(),blankAttr()} end, chance=8},
+		{id=42, name="💍", slot=3, chance=20, attr=15},
+		{id=43, name="⚙️", slot=3, chance=20, attr=10},
+		{id=44, name="🍩", slot=3, chance=20, attr=5},
 	},
 	[SLOT_NECKLACE] = {
-		{id=45, name="🧣", slot=1, new = function() return {blankAttr(),blankAttr(),blankAttr()} end, chance=20},
-		{id=46, name="📿", slot=4, new = function() return  {blankAttr(),blankAttr(),blankAttr()} end, chance=4},
+		{id=45, name="🧣", slot=1, chance=100, attr=26},
+		{id=46, name="📿", slot=4, chance=20, attr=18},
 	},
 
 	[SLOT_LEGS] = {
-		{id=49, name="👖", slot=2, chance=12},
-		{id=50, name="🍁", slot=1, chance=16},
-		{id=51, name="🧻", slot=2, chance=12},
-		{id=52, name="🍑", slot=3, chance=8},
+		{id=49, name="👖", slot=2, chance=80, attr=37},
+		{id=50, name="🍁", slot=1, chance=120, attr=12},
+		{id=51, name="🧻", slot=2, chance=80, attr=22},
+		{id=52, name="🍑", slot=3, chance=20, attr=2},
 	}
 
 }
@@ -276,35 +370,35 @@ equips = {
 
 
 attributes = {
-	{name="HP.t1"	, v = {5,15}			,	class=ITEM_CLASS_HEALTH 		,chance=400 },
+	{name="HP.t1"	, v = {5,15}			,	class=ITEM_CLASS_HEALTH 		,chance=400 }, --1
 	{name="HP.t2"	, v = {16,30}			,	class=ITEM_CLASS_HEALTH 		,chance=100 },
 	{name="HP.t3"	, v = {31,50}			,	class=ITEM_CLASS_HEALTH 		,chance=50 },
 	{name="HP.t4"	, v = {51,70}			,	class=ITEM_CLASS_HEALTH 		,chance=5 },
-	{name="MAX HP.t1"	, p = {4,6}			,	class=ITEM_CLASS_HEALTH_MAX 	,chance=20 },
+	{name="MAX HP.t1"	, p = {4,6}			,	class=ITEM_CLASS_HEALTH_MAX 	,chance=20 }, --5
 
-	{name="ATK.t1"	, v = {2,4}				,	class=ITEM_CLASS_ATTACK 		,chance=1000 },
+	{name="ATK.t1"	, v = {2,4}				,	class=ITEM_CLASS_ATTACK 		,chance=1000 }, --6
 	{name="ATK.t2"	, v = {5,9}			,	class=ITEM_CLASS_ATTACK 		,chance=100 },
 	{name="ATK.t3"	, v = {10,15}			,	class=ITEM_CLASS_ATTACK 		,chance=50 },
 	{name="ATK.t4"	, v = {16,25}			,	class=ITEM_CLASS_ATTACK 		,chance=5 },
-	{name="MAX ATK.t1"	, p = {4,6}			,	class=ITEM_CLASS_ATTACK_MAX 	,chance=60 },
+	{name="MAX ATK.t1"	, p = {4,6}			,	class=ITEM_CLASS_ATTACK_MAX 	,chance=60 }, --10
 
 	{name="DEF.t1"	, v = {2,4}				,	class=ITEM_CLASS_DEFENSE 		,chance=1000 },
 	{name="DEF.t2"	, v = {5,9}			,	class=ITEM_CLASS_DEFENSE 		,chance=100 },
 	{name="DEF.t3"	, v = {10,15}			,	class=ITEM_CLASS_DEFENSE 		,chance=50 },
 	{name="DEF.t4"	, v = {16,25}			,	class=ITEM_CLASS_DEFENSE 		,chance=5 },
-	{name="MAX DEF.t1"	, p = {4,6}			,	class=ITEM_CLASS_DEFENSE_MAX 	,chance=60 },
+	{name="MAX DEF.t1"	, p = {4,6}			,	class=ITEM_CLASS_DEFENSE_MAX 	,chance=60 }, --15
 
 	{name="AGI.t1"	, v = {2,4}				,	class=ITEM_CLASS_EVASION 		,chance=1000 },
 	{name="AGI.t2"	, v = {5,9}			,	class=ITEM_CLASS_EVASION 		,chance=100 },
 	{name="AGI.t3"	, v = {10,15}			,	class=ITEM_CLASS_EVASION 		,chance=50 },
 	{name="AGI.t4"	, v = {16,25}			,	class=ITEM_CLASS_EVASION 		,chance=5 },
-	{name="MAX AGI.t1"	, p = {4,6}			,	class=ITEM_CLASS_EVASION_MAX 	,chance=60 },
+	{name="MAX AGI.t1"	, p = {4,6}			,	class=ITEM_CLASS_EVASION_MAX 	,chance=60 }, --20
 
 	{name="VIT.t1"	, v = {2,4}				,	class=ITEM_CLASS_VITALITY 		,chance=1000 },
 	{name="VIT.t2"	, v = {5,9}			,	class=ITEM_CLASS_VITALITY 		,chance=100 },
-	{name="VIT.t2"	, v = {10,15}			,	class=ITEM_CLASS_VITALITY 		,chance=50 },
+	{name="VIT.t3"	, v = {10,15}			,	class=ITEM_CLASS_VITALITY 		,chance=50 },
 	{name="VIT.t4"	, v = {16,25}			,	class=ITEM_CLASS_VITALITY 		,chance=5 },
-	{name="MAX VIT.t1"	, p = {1,2}			,	class=ITEM_CLASS_VITALITY_MAX 	,chance=60 },
+	{name="MAX VIT.t1"	, p = {1,2}			,	class=ITEM_CLASS_VITALITY_MAX 	,chance=60 }, --25
 
 
 	{name="Inc Crit.t1"	, p = {20,30}		,	class=ITEM_CLASS_CRITICAL 		,chance=300 },
@@ -314,7 +408,7 @@ attributes = {
 
 	{name="HEAL.t1"	, p = {5,100}			,	class=ITEM_CLASS_HEAL 			,chance=1000 },
 	{name="HEAL.t2"	, p = {101,200}			,	class=ITEM_CLASS_HEAL 			,chance=110 },
-	{name="HEAL.t3"	, p = {201,300}			,	class=ITEM_CLASS_HEAL 				,chance=100 },
+	{name="HEAL.t3"	, p = {201,300}			,	class=ITEM_CLASS_HEAL 				,chance=100 }, --30
 	{name="HEAL.t4"	, p = {301,500}			,	class=ITEM_CLASS_HEAL 			,chance=5 },
 
 	{name="EXP.t1"		, p = {5,20}		,	class=ITEM_CLASS_EXP 			,chance=300 },
@@ -323,22 +417,49 @@ attributes = {
 	{name="MAX HP.t2"	, p = {7,11}		,	class=ITEM_CLASS_HEALTH_MAX 	,chance=5 },
 	{name="EXP.t2"		, p = {21,30}		,	class=ITEM_CLASS_EXP 			,chance=40 },
 
-	{name="Inc Crit.t3"	, p = {61,120}		,	class=ITEM_CLASS_CRITICAL 		,chance=5 },
+	{name="Inc Crit.t3"	, p = {61,120}		,	class=ITEM_CLASS_CRITICAL 		,chance=5 }, --35
 
 	{name="Inc Evade.t1"	, p = {20,30}		,	class=ITEM_CLASS_EVADE 		,chance=300 },
 	{name="Inc Evade.t2"	, p = {31,60}		,	class=ITEM_CLASS_EVADE 		,chance=150 },
 	{name="Inc Evade.t3"	, p = {61,120}		,	class=ITEM_CLASS_EVADE 		,chance=5 },
 
 	{name="Inc Accuracy.t1"	, p = {20,30}		,	class=ITEM_CLASS_ACCURACY 		,chance=300 },
-	{name="Inc Accuracy.t2"	, p = {31,60}		,	class=ITEM_CLASS_ACCURACY 		,chance=150 },
+	{name="Inc Accuracy.t2"	, p = {31,60}		,	class=ITEM_CLASS_ACCURACY 		,chance=150 }, --40
 	{name="Inc Accuracy.t3"	, p = {61,120}		,	class=ITEM_CLASS_ACCURACY 		,chance=5 },
 
 	{name="Inc Block.t1"	, p = {20,30}		,	class=ITEM_CLASS_BLOCK 		,chance=300 },
 	{name="Inc Block.t2"	, p = {31,60}		,	class=ITEM_CLASS_BLOCK 		,chance=150 },
 	{name="Inc Block.t3"	, p = {61,120}		,	class=ITEM_CLASS_BLOCK 		,chance=5 },
 
+	{name="Insta Kill.t1"	, p = {1,1}			,	class=ITEM_CLASS_INSTAKILL		,chance=0 }, --45
+
+	{name="Life drain.t1"	, p = {2,3}			,	class=ITEM_CLASS_LIFEDRAIN		,chance=30 }, --45
+	{name="Life drain.t2"	, p = {4,6}			,	class=ITEM_CLASS_LIFEDRAIN		,chance=15 }, --45
+	{name="Life drain.t3"	, p = {7,11}		,	class=ITEM_CLASS_LIFEDRAIN		,chance=5 }, --45
+
+
+	{name="Damage Amp.t1"	, p = {8,10}			,	class=ITEM_CLASS_DAMAGE_AMP		,chance=30 }, --45
+	{name="Damage Amp.t2"	, p = {11,13}			,	class=ITEM_CLASS_DAMAGE_AMP		,chance=15 }, --45
+	{name="Damage Amp.t3"	, p = {14,16}			,	class=ITEM_CLASS_DAMAGE_AMP		,chance=5 }, --45
+
+
+	{name="Damage reduction.t1"	, p = {11,13}		,	class=ITEM_CLASS_DAMAGE_RED		,chance=30 }, --45
+	{name="Damage reduction.t2"	, p = {14,16}		,	class=ITEM_CLASS_DAMAGE_RED		,chance=15 }, --45
+	{name="Damage reduction.t3"	, p = {17,22}		,	class=ITEM_CLASS_DAMAGE_RED		,chance=5 }, --45
+
 
 }
+print(#attributes)
+
+nonequip = {
+
+}
+
+for id, item in pairs(items) do
+	if not item.equip and tonumber(id) then
+		nonequip[#nonequip+1] = id
+	end
+end
 
 
 
@@ -372,6 +493,12 @@ function getItemAttribute(item, classid, p)
 				t = t + ((p and b.p or b.v) or 0) 
 				has = true
 			end
+		end
+	end
+	if item[1] and items[item[1]] and items[item[1]].implicit then
+		if attributes[items[item[1]].implicit].class == classid then
+			local b = attributes[items[item[1]].implicit]
+			t = t + ((p and b.p[2]/100 or b.v[2]) or 0) 
 		end
 	end
 	return t, has
@@ -432,6 +559,22 @@ function makeAttribute(id)
 	return attr
 end
 
+
+function makeSlots(id)
+	local slotChance = 3500
+    local slots = 0
+
+    local maxSlots = (maxslots[items[id].equip] or 2) -1
+    for i=1, maxSlots do 
+        if math.random(0, 10000) >= (slotChance - (i/maxSlots)*0) then 
+            break
+        else 
+        	slots = i
+        end
+    end
+	return 1 + slots, maxSlots+1
+end
+
 function getAttrName(id)
 	return attributes[id] and attributes[id].name or '-'
 end
@@ -440,18 +583,39 @@ function genAttrDesc(a)
 	return ((a.v and a.v ~= 0) and (a.v.." ") or "")..((a.p and a.p ~= 0) and ((a.p*100).."% ") or "")..getAttrName(a.i)
 end
 
+function genImplicitDesc(id)
+	local a = {i=id}
+	if attributes[id].v then 
+		a.v = attributes[id].v[2]
+	end
+
+	if attributes[id].p then 
+		a.p = attributes[id].p[2]/100
+	end
+
+
+	return ((a.v and a.v ~= 0) and (a.v.." ") or "")..((a.p and a.p ~= 0) and ((a.p*100).."% ") or "")..getAttrName(a.i)
+end
+
 
 local function genDesc(item)
 	local desc = ""
-	for i=1,items[item[1]].slot do
+	if not item.attr then 
+		item.attr = {}
+	end
+	if not item.slots then 
+		item.slots = items[item[1]].slot
+	end
+	for i=1,item.slots do
 		if not item.attr[i] then 
 			item.attr[i] = blankAttr()
 		end
-		desc = desc.."["..genAttrDesc(item.attr[i]).."]"
+		desc = desc.." ["..genAttrDesc(item.attr[i]).."]"
 	end
-	return desc
+	return (items[item[1]].implicit and ("{"..genImplicitDesc( items[item[1]].implicit).."}") or "")..desc
 end
 
+droppable = {}
 function populate()
 	--set to a static thing
 	for i,b in pairs(equips) do 
@@ -462,15 +626,22 @@ function populate()
 				name = itemObj.name,
 				stack=false,
 				stock=true,
-				--prob=0, 
-				prob=itemObj.chance,
+				--prob=00,
+				implicit = itemObj.attr, 
+				prob=70,
 				price=2000,
 				slot=itemObj.slot or 2,
 				--blockbuy=true,
 				work = function(a, c) return {false,"WIP", 0} end,
-				new =  itemObj.new or function(id) local amount = items[id].slot; local atrib = {} for i=1,amount do atrib[#atrib+1] = blankAttr()  end return atrib end,
+				--new =  itemObj.new or function(id) local amount = items[id].slot; local atrib = {} for i=1,amount do atrib[#atrib+1] = blankAttr()  end return atrib end,
 				genDesc=genDesc,
 			}
+		end
+	end
+	
+	for i,b in pairs(items) do
+		if not b.equip and b.prob and b.prob > 0 then
+			droppable[#droppable+1] = i
 		end
 	end
 end
@@ -499,6 +670,19 @@ function renderSet(data)
 		end
 	end
 	return str
+end
+
+function renderSlotItem(data, id)
+	local b = data.equip[id]
+	if type(b) ~= "table" then 
+		return "???"
+	end
+	return items[b[1]].name.." - "..whereTextEquip(items[b[1]].equip)..'\n'..(items[b[1]].desc or items[b[1]].genDesc(b)).."\n"
+	-- body
+end
+
+function renderItem(it)
+	return items[it[1]].name..(items[it[1]].equip and (items[it[1]].genDesc(it) ) or ("") )
 end
 
 function processEquipUse(msg)
@@ -589,7 +773,7 @@ function renderEquipButtons(data, uname)
 	keyb[height+1][1] = {text = "❌Close❌", callback_data = "bp:"..uname..":0" }
 	local JSON = require("JSON")
 	local kb = JSON:encode({inline_keyboard = keyb})
-	return kb, (equip:len() > 0 and ("Equipaments (/rpgequip): \n"..equip) or "You dont have any equipments")
+	return kb, (equip:len() > 0 and ("Equipaments (/rpgequip + /rpgcraft): \n"..equip) or "You dont have any equipments")
 end
 
 function string:makeItCute()
@@ -625,71 +809,7 @@ function rpgEquips(msg)
 	end
 end
 
-function renderCraftOptions(data, uname, w)
-	local keyb = {}
-	keyb[1] = {}
-	local cnt = 0
-	local height = 1
 
-	local equip = ""
-	for i=SLOT_FIRST, SLOT_LAST do
-		
-		--if items[data.bp[i][1]].equip then 
-			cnt = cnt +1
-			if cnt > 1 then 
-				height = height +1
-				cnt = 1
-				keyb[height] = {}
-			end
-			--if data.equip ~= 0 and items[data.equip[i][1]].equip then 
-			--	equip = equip .. items[data.bp[i][1]].name.." - <i>"..whereTextEquip(items[data.equip[i][1]].equip)..' '..(items[data.equip[i][1]].desc or items[data.equip[i][1]].genDesc(data.bp[i])).."</i>\n"
-			--end
-	
-			keyb[height][cnt] = {text = whereTextEquip(i)..(data.equip[i] ~= 0 and items[data.equip[i][1]].name or "[nothing]").." "..(data.equip[i] ~= 0 and (items[data.equip[i][1]].desc or items[data.equip[i][1]].genDesc(data.equip[i])) or ""), callback_data = "upg:"..uname..":"..i }
-
-		--end
-		
-	end
-
-	height  = height +1
-	keyb[height] = {}
-	local cntr = 1
-
-	local found, where = findItem(data, 6)
-	if found  then
-		
-		keyb[height][cntr] = {text = "Swap to: 🥃 (add)", callback_data = "cfm:"..uname..":"..where }
-		cntr = cntr +1
-	end
-
-	found, where = findItem(data, 19)
-	if found then
-		keyb[height][cntr] = {text = "Swap to: 🍷 (reroll)", callback_data = "cfm:"..uname..":"..where }
-		cntr = cntr +1
-	end 
-
-	found, where = findItem(data, 5)
-	if found then
-		keyb[height][cntr] = {text = "Swap to 🍺 (remove)", callback_data = "cfm:"..uname..":"..where }
-		cntr = cntr +1
-	end
-	if cntr ~= 1 then 
-		height = height +1
-	end
-
-	keyb[height] = {}
-	keyb[height][1] = {text = "❌Close❌", callback_data = "bp:"..uname..":0" }
-
-	local JSON = require("JSON")
-	local kb = JSON:encode({inline_keyboard = keyb})
-	local left = 0
-	for i,b in pairs(data.bp) do 
-		if b[1] == w then 
-			left = left + b[2]
-		end
-	end
-	return kb, "<b>Using:</b> "..items[w].name.." <i>(remaining "..left..")</i>\n<b>"..items[w].desc.."</b>"
-end
 
 function findItem(data, id)
 	for i,b in pairs(data.bp) do 
@@ -702,84 +822,352 @@ end
 
 
 
-function processCraft(msg)
-	local user, item = msg.data:match("upg:(.-):(%d+)")
-	if msg.from.username:lower() ~=user then 
-		deploy_answerCallbackQuery(msg.id, "This is not your craft", "true")
+function renderMisteryButtons(chest)
+	local keyb = {}
+	for i=1,#chest.happen do
+		keyb[i] = {}
+		local cnt = 0 
+		for a,c in pairs(chest.used) do 
+			if c == i then 
+				cnt = cnt +1
+			end
+		end
+		keyb[i][1] = {text = "Option "..i.." has "..cnt.." uses", callback_data = "rpg:mb:"..i..":"..chest.id }
+	end
+
+	local JSON = require("JSON")
+	local kb = JSON:encode({inline_keyboard = keyb})
+	return kb
+end
+if not mistery then 
+	mistery = {}
+end
+
+function bonusess()
+	local bon = nil
+
+	local n = math.random(1,15)
+	if n == 1 then 
+		bon = {
+			msg = "You won 150% of your total gold.",
+			f=function (a)
+				addGold(a, a.g * 1.5)
+			end
+		}
+	elseif n == 2 then 
+		bon = {
+			msg = "You lost 30% of your total gold.",
+			f=function (a)
+				addGold(a, -a.g * 0.3)
+			end
+		}
+	elseif n == 3 then 
+		bon = {
+			msg = "No you have a coldown on /rploot of 2 hours",
+			f=function (a)
+				a.loot = os.time() + 3600 * 2
+			end
+		}
+	elseif n == 4 then 
+		bon = {
+			msg = "You lost a random item on your backpac.",
+			f=function (a)
+				randomDelete(a)
+			end
+		}
+	elseif n == 5 then 
+		bon = {
+			msg = "You found two 📦",
+			f=function (a)
+				addItem(a, 47, 2) 
+			end
+		}
+	elseif n == 6 then 
+		bon = {
+			msg = "You lost one level.\n\nJust kidding. Nothing happened.",
+			f=function (a)
+			end
+		}
+	elseif n == 7 then 
+		bon = {
+			msg = "You lost exp like you lost a battle!",
+			f=function (a)
+				local drain = math.floor( (getExpToLevel(a.lvl+1)-getExpToLevel(a.lvl))*0.1 )
+
+				local expected = drain 	
+
+				local noLess = getExpToLevel(a.lvl)
+				if a.exp-drain < noLess then 
+					drain = a.exp-noLess
+				end
+				drain = math.max(drain, 0)
+				loseExp(a, drain)
+			end
+		}
+	elseif n == 8 then 
+		bon = {
+			msg = "You won TWICE of the equivalent EXP you would lose if you lost.",
+			f=function (a)
+				local drain = math.floor( (getExpToLevel(a.lvl+1)-getExpToLevel(a.lvl))*0.1 )
+
+				local expected = drain 	
+
+				local noLess = getExpToLevel(a.lvl)
+				if a.exp-drain < noLess then 
+					drain = a.exp-noLess
+				end
+				drain = math.max(drain, 0)
+				gainExp(a, drain * 2)
+			end
+		}
+	elseif n == 9 then 
+		bon = {
+			msg = "You found "..formatMoney(3333),
+			f=function (a)
+				a.g = a.g + 3333
+			end
+		}
+	elseif n == 10 then 
+		bon = {
+			msg = "Congrats. Nothing.",
+			f=function (a)
+			end
+		}
+	elseif n == 11 then 
+		bon = {
+			msg = "You found 5x🍺 5x🥃 5x🍷. Time to craft!",
+			f=function (a)
+				addItem(a, 5, 5) 
+				addItem(a, 6, 5) 
+				addItem(a, 19, 5) 
+			end
+		}
+	elseif n == 12 then 
+		bon = {
+			msg = "You "..formatMoney(),
+			f=function (a)
+				addGold(a, 1000) 
+			end
+		}
+	elseif n == 13 then 
+		bon = {
+			msg = "Nice. 500 xp!",
+			f=function (a)
+				gainExp(a, 500)
+			end
+		}
+	elseif n == 14 then 
+		bon = {
+			msg = "Your rpgloot now have bonuses!",
+			f=function (a)
+				a.loot = os.time() - 3600 * 24 * 50
+			end
+		}
+	elseif n == 15 then 
+		bon = {
+			msg = "You found 3 🍾",
+			f=function (a)
+				addItem(a, 60, 3) 
+			end
+		}
+	end
+
+	return bon
+end
+function spawnMisteryBox(msg)
+
+	local chest = {uses = 0, used={}, type="mistery", happen = {
+		bonusess(),
+		bonusess(),
+		bonusess(),
+		bonusess(),
+
+	}}
+	mistery[os.time()] = chest
+	mistery[os.time()].id = os.time()
+
+	local kb = renderMisteryButtons(chest)
+
+
+	local wut = bot.sendPhoto(msg.chat.id, 'mystery-box.jpg', "Four boxes appeared!\nYou can open only one!\nThe effects can be good or bad.", false, nil, kb, "HTML")
+
+	chest.msg = wut
+end
+
+
+
+
+
+function processMisteryBox(msg, data, id, mbid)
+	mbid = tonumber(mbid)
+	id = tonumber(id)
+	if not mistery[mbid] then 
+		deploy_answerCallbackQuery(msg.id, "Those boxes dont exist anymore :/")
 		return
 	end
-	item = tonumber(item)
-	
+	local mist =  mistery[mbid]
+	if not mist.used[msg.from.id] then
+		mist.used[msg.from.id] = id
+		mist.uses = mist.uses +1 
+		deploy_answerCallbackQuery(msg.id, mist.happen[id].msg or "???", "true")
+
+		mist.happen[id].f(data)
+
+		deploy_sendMessage(msg.from.id, mist.happen[id].msg or "??") 
+
+		local kb = renderMisteryButtons(mist)
+
+		deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, kb)
+	else 
+		deploy_answerCallbackQuery(msg.id, "You cant use it again!")
+	end
+end
+
+function processRpgCall(msg)
 	local data = getUserRpg(msg.from.username)
 	if data then
-		if item == 0 then
-			
-			deploy_answerCallbackQuery(msg.id, "Choose!", "true")
+		updateHealthByTicks(data)
+		local call = msg.data:match("rpg:(.+)")
 
-			local kb,str = renderCraftTypes(data, msg.from.username)
-			--bot.sendMessage(msg.chat.id, renderSet(data).."\nItens:\n"..str, "HTML", true, false, nil, kb)
-
-
-			bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, renderSet(data):makeItCute().."\nItens:\n"..str, "HTML", nil, kb)
+		if call:match("mb:(%d+):(%d+)") then 
+			processMisteryBox(msg, data, call:match("mb:(%d+):(%d+)"))
 			return
-		end
-		if not items.used[msg.message.message_id] then
-			items.used[msg.message.message_id] = true
-			scheduleEvent(0, function()
-				items.used[msg.message.message_id] = false
-			end)
-			
-			if not data.equip[item] or data.equip[item] == 0 then
-				deploy_answerCallbackQuery(msg.id, "You need a item on this slot", "true")
-				return
-			end
+		elseif call:match("pool:(%d+):(%d+)") then 
+			processManaPool(msg, data, call:match("pool:(%d+):(%d+)"))
+			return
+		elseif call:match("drop:(.-):(.-):(%d+)") then
+			local tgt, uname, id =  call:match("drop:(.-):(.-):(%d+)")
+			id = tonumber(id)
+			deploy_answerCallbackQuery(msg.id, "Ok -> "..tgt) 
+			confirmDrop(msg, data, id, tgt)
+			return
+		elseif call:match("dropconfirm:(.-):(%d+):(%d+)") then
+			local tgt, id, amount =  call:match("dropconfirm:(.-):(%d+):(%d+)")
 
-			if not data.us or not items[data.us].craft then 
-				deploy_answerCallbackQuery(msg.id, "Use /rpgcraft and choose a object to use. The bot might have restarted:"..tostring(data.us), "true")
-				return
-			end
-
-			local craftMaterial, location = findItem(data, data.us)
-			if craftMaterial then 
-				
-				craftMaterial[2] = craftMaterial[2] - 1
-		
-				if craftMaterial[2] == 0 then 
-					table.remove(data.bp, location)
-				end
-
-				local ret, str2 = items[data.us].craft(data.equip[item])
-				if not ret then 
-					deploy_answerCallbackQuery(msg.id, str2, "true")
-
-					return
-				end
-
-				deploy_answerCallbackQuery(msg.id, "Used one "..items[data.us].name.."\n"..str2, "true")
-
-				--
-				
-
-				local kb, str = renderCraftOptions(data, msg.from.username, data.us)
-				--scheduleEvent(1, function()
-					--deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, kb)
-					bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, str.."\n\n<b>Your set:</b>\n"..renderSet(data):makeItCute().."\n\nChange itens with /rpgequip", "HTML", nil, kb)
-				--end)
-
-				
-			else 
-				deploy_answerCallbackQuery(msg.id, "You dont have enought ", "true")
-			end
+			id = tonumber(id)
+			amount = tonumber(amount)
+			doDrop(msg, data, id, amount, tgt)
+			return
+		elseif call:match("dropclaim:(%d+)") then
+			local id =  call:match("dropclaim:(%d+)")
+			id = tonumber(id)
+			doDropClaim(msg, data, id)
+			return
+		elseif call:match("equippls") then
+			swapToSellEquips(msg, data)
+			return
+		elseif call:match("itempls") then
+			swapToSellRegular(msg, data)
+			return
 		else 
-			deploy_answerCallbackQuery(msg.id, "Too fast. wait.")
+			deploy_answerCallbackQuery(msg.id, "Unknow: "..msg.data, "true")
 		end
 	else
 		deploy_answerCallbackQuery(msg.id, "Você nao participa do rpg", "true")
 	end
+end
+
+function doDropClaim(msg, data, dropid)
+	if not rpg_dropped_items[dropid] then 
+		deploy_answerCallbackQuery(msg.id, "Already claimed.", "true")
+		--deploy_deleteMessage(msg.message.chat.id, msg.message.message_id)
+		return 
+	end
+
+	local uid = addItem(data, rpg_dropped_items[dropid][1], rpg_dropped_items[dropid][2])
+	if  rpg_dropped_items[dropid].attr then 
+		uid.attr =  rpg_dropped_items[dropid].attr
+		uid.slots =  rpg_dropped_items[dropid].slots
+	end
+	rpg_dropped_items[dropid].attr = nil
+	rpg_dropped_items[dropid].slots = nil
+	deploy_answerCallbackQuery(msg.id, "You claimed it!", "true")
+	bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "User @"..msg.from.username.." claimed "..rpg_dropped_items[dropid][2].."x "..renderItem(uid), "HTML", nil)
+	--deploy_deleteMessage(msg.message.chat.id, msg.message.message_id)
 	SaveUser(msg.from.username)
 end
 
 
+
+function doDrop(msg, data, id, amount, tgt)
+	local it = data.bp[id]
+	local tgtid = RPGCHAT
+	if tgt ~= msg.from.username then
+		if not users[tgt] or not users[tgt].telegramid then 
+			deploy_answerCallbackQuery(msg.id, "Unknow: user @"..tgt, "true")
+			return 
+		else 
+			tgtid = users[tgt].telegramid
+			deploy_answerCallbackQuery(msg.id, "Dropped "..renderItem(it).." to @"..tgt, "true")
+		end
+	else 
+		deploy_answerCallbackQuery(msg.id, "Dropped "..renderItem(it), "true")
+	end
+
+	if not it then 
+		deploy_answerCallbackQuery(msg.id, "Missing item", "true")
+		return
+	end
+
+	local dropid = os.time()
+	if it[2] <= amount then 
+		amount = it[2]
+		table.remove(data.bp, id)
+		rpg_dropped_items[dropid] = it
+	else 
+		it[2] = it[2] - amount
+		rpg_dropped_items[dropid] = {it[1], amount}
+	end	
+
+	if tgtid == RPGCHAT then 
+		checkQuestInner(data, msg.from.username, msg, "rpgdrop")
+	end
+
+	deploy_deleteMessage(msg.message.chat.id, msg.message.message_id)
+	
+	displayDroppedItem(tgtid, rpg_dropped_items[dropid], msg.from.username, dropid)
+
+	SaveUser(msg.from.username)
+end
+
+function displayDroppedItem(chatid, itemObject, who, id)
+	local keyb = {{},{}}
+	keyb[1][1] = {text = "Claim item", callback_data = "rpg:dropclaim:"..id }
+	local JSON = require("JSON")
+	local kb = JSON:encode({inline_keyboard = keyb})
+
+	bot.sendMessage(chatid, "User @"..who.." dropped a "..itemObject[2].."x "..renderItem(itemObject), "HTML", true, false, nil, kb)
+	
+end
+
+function confirmDrop(msg, data, id, tgt)
+	local it = data.bp[id]
+	if not it then 
+		return
+	end
+	if items[it[1]].equip then
+		local keyb = {{},{}}
+		keyb[1][1] = {text = "❌No❌", callback_data = "bp:"..msg.from.username..":0" }
+		keyb[2][1] = {text = "✅Yes✅", callback_data = "rpg:dropconfirm:"..tgt..":"..id..":1" }
+		local JSON = require("JSON")
+		local kb = JSON:encode({inline_keyboard = keyb})
+		bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "Are you sure you want to drop? "..renderItem(data.bp[id]), "HTML", nil, kb)
+	else
+		local keyb = {{}, {}}
+		keyb[1][1] = {text = "❌No❌", callback_data = "bp:"..msg.from.username..":0" }
+		keyb[2][1] = {text = "1x", callback_data = "rpg:dropconfirm:"..tgt..":"..id..":1" }
+		for i=1,10 do 
+			if i*5 <= it[2] then 
+				keyb[i+2] =  {{text = (i*5).."x", callback_data = "rpg:dropconfirm:"..tgt..":"..id..":"..(i*5) }}
+			end
+		end
+		local JSON = require("JSON")
+		local kb = JSON:encode({inline_keyboard = keyb})
+		bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "How much you want to drop of "..renderItem(data.bp[id]), "HTML", nil, kb)
+	end
+end
+
+ 
 function processChangeCraft(msg)
 	local user, item = msg.data:match("cfm:(.-):(%d+)")
 	if msg.from.username:lower() ~=user then 
@@ -826,8 +1214,7 @@ function processChangeCraft(msg)
 	SaveUser(msg.from.username)
 end
 
-
-function renderCraftTypes(data, uname)
+--[[function renderCraftItens()
 	local keyb = {}
 	keyb[1] = {}
 	local cnt = 0
@@ -836,8 +1223,7 @@ function renderCraftTypes(data, uname)
 	local equip = ""
 	local fnd = ""
 	for i=1,#data.bp do
-		--print(i, data.bp[i][1])
-		if items[data.bp[i][1]].craft then 
+		if items[data.bp[i][1] ].craft then 
 			
 			cnt = cnt +1
 			if cnt > 2 then 
@@ -846,8 +1232,8 @@ function renderCraftTypes(data, uname)
 				keyb[height] = {}
 			end
 			--print("add")
-			fnd = fnd .. items[data.bp[i][1]].name
-			keyb[height][cnt] = {text = items[data.bp[i][1]].name..(items[data.bp[i][1]].desc or items[data.bp[i][1]].genDesc(data.bp[i])), callback_data = "cfm:"..uname..":"..i }
+			fnd = fnd .. items[data.bp[i][1] ].name
+			keyb[height][cnt] = {text = items[data.bp[i][1] ].name..(items[data.bp[i][1] ].desc or items[data.bp[i][1] ].genDesc(data.bp[i])), callback_data = "cfm:"..uname..":"..i }
 		end
 	end
 	keyb[height+1] = {}
@@ -855,9 +1241,175 @@ function renderCraftTypes(data, uname)
 	local JSON = require("JSON")
 	local kb = JSON:encode({inline_keyboard = keyb})
 	return kb, (equip:len() > 0 and ("Equipaments (/rpgequip): \n"..equip) or "You dont have any equipments").."\n"..fnd
+
+end]]
+
+function renderCraftOptions(data, uname, w)
+	local keyb = {}
+	keyb[1] = {}
+	local cnt = 0
+	local height = 1
+
+	local equip = ""
+	height  = height +1
+	keyb[height] = {}
+	local cntr = 1
+
+	local found, where = findItem(data, 6)
+	if found  then
+		keyb[height][1] = {text = tostring(found[2]).."x 🥃 add random modifier", callback_data = "cfm:"..where..":"..w }
+		height = height +1
+		keyb[height] = {}
+	end
+
+	found, where = findItem(data, 19)
+	if found then
+		keyb[height][1] = {text = tostring(found[2]).."x🍷 reroll all", callback_data = "cfm:"..where..":"..w }
+		height = height +1
+		keyb[height] = {}
+	end 
+
+	found, where = findItem(data, 5)
+	if found then
+
+		keyb[height][1] = {text = tostring(found[2]).."x🍺 remove random modifier", callback_data = "cfm:"..where..":"..w }
+		height = height +1
+		keyb[height] = {}
+	end
+
+	found, where = findItem(data, 60)
+	if found then
+
+		keyb[height][1] = {text = tostring(found[2]).."x🍾 add modifier with luck", callback_data = "cfm:"..where..":"..w }
+		height = height +1
+		keyb[height] = {}
+	end
+
+	found, where = findItem(data, 61)
+	if found then
+
+		keyb[height][1] = {text = tostring(found[2]).."x🍵 Modify slot count", callback_data = "cfm:"..where..":"..w }
+		height = height +1
+		keyb[height] = {}
+	end
+
+	
+	keyb[height][1] = {text = "↩️Go back↩️", callback_data = "bcarpgkplz" }
+
+	keyb[height+1] = {}
+	keyb[height+1][1] = {text = "❌Close❌", callback_data = "bp:"..uname..":0" }
+
+
+	local JSON = require("JSON")
+	local kb = JSON:encode({inline_keyboard = keyb})
+	local left = 0
+	for i,b in pairs(data.bp) do 
+		if b[1] == w then 
+			left = left + b[2]
+		end
+	end
+	return kb, ""
 end
 
-function renderRpgCraft(msg)
+--User has selectd the item to be crafted
+function processSelectedCraftableItem(msg)
+	local user, slot = msg.data:match("cfti:(.-):(%d+)")
+	if msg.from.username:lower() ~=user then 
+		deploy_answerCallbackQuery(msg.id, "This is not your backpack", "true")
+		return
+	end
+	slot = tonumber(slot)
+	if item == 0 then
+		deploy_answerCallbackQuery(msg.id, "Closing backpack")
+		deploy_deleteMessage(msg.message.chat.id, msg.message.message_id)
+		return
+	end
+	local data = getUserRpg(msg.from.username)
+	if data then
+		local kb = renderCraftOptions(data, msg.from.username, slot)
+		bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "You are crafting\n\n".. renderSlotItem(data, slot), "HTML", nil, kb)
+	else
+		deploy_answerCallbackQuery(msg.id, "Você nao participa do rpg", "true")
+	end
+	SaveUser(msg.from.username)
+end
+
+
+
+function processCraft(msg)
+	local backpackItem, slotItem = msg.data:match("cfm:(%d+):(%d+)")
+
+	backpackItem = tonumber(backpackItem)
+	slotItem = tonumber(slotItem)
+	
+	local data = getUserRpg(msg.from.username)
+	if data then
+		if item == 0 or backpackItem == 0 then
+			
+			deploy_answerCallbackQuery(msg.id, "Choose!", "true")
+
+			--local kb,str = renderCraftTypes(data, msg.from.username)
+			--bot.sendMessage(msg.chat.id, renderSet(data).."\nItens:\n"..str, "HTML", true, false, nil, kb)
+
+
+			--bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, renderSet(data):makeItCute().."\nItens:\n"..str, "HTML", nil, kb)
+			return
+		end
+		if not items.used[msg.message.message_id] then
+			items.used[msg.message.message_id] = true
+			scheduleEvent(0, function()
+				items.used[msg.message.message_id] = false
+			end)
+			
+			if not data.equip[slotItem] or data.equip[slotItem] == 0 then
+				deploy_answerCallbackQuery(msg.id, "You need a item on this slot", "true")
+				return
+			end
+
+			local craftMaterial = data.bp[backpackItem]
+
+			if craftMaterial then 
+				
+				if not items[craftMaterial[1]].craft then 
+					deploy_answerCallbackQuery(msg.id, "??????? "..items[craftMaterial[1]].name, "true")
+					return
+				end
+				
+				local ret, str2 = items[craftMaterial[1]].craft(data.equip[slotItem])
+				if not ret then 
+					deploy_answerCallbackQuery(msg.id, str2, "true")
+					return
+				end
+
+				craftMaterial[2] = craftMaterial[2] - 1
+		
+				if craftMaterial[2] == 0 then 
+					table.remove(data.bp, backpackItem)
+				end
+
+
+				deploy_answerCallbackQuery(msg.id, "Used one "..items[craftMaterial[1]].name.."\n"..str2, "true")
+
+
+				local kb = renderCraftOptions(data, msg.from.username, slotItem)
+				bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "--------------------------------------------\nYou are crafting\n\n".. renderSlotItem(data, slotItem), "HTML", nil, kb)
+				
+			else 
+				deploy_answerCallbackQuery(msg.id, "You dont have enought ", "true")
+			end
+			--deploy_answerCallbackQuery(msg.id, "uwused"..backpackItem..":"..slotItem, "true")
+		else 
+			deploy_answerCallbackQuery(msg.id, "Too fast. wait.")
+		end
+	else
+		deploy_answerCallbackQuery(msg.id, "Você nao participa do rpg", "true")
+	end
+	SaveUser(msg.from.username)
+end
+
+
+-- the /rpgcraft
+function renderRpgCraft(msg, edit)
 	local data = getUserRpg(msg.from.username)
 	if not data then 
 		say("Sorry, you dont have a rpg character. use /rpgstart to join")
@@ -866,17 +1418,59 @@ function renderRpgCraft(msg)
 		if type(data.bp) == "string" then
 			data.bp = {}
 		end
-		if msg.chat.type ~= "private" then 
+		if msg.chat and msg.chat.type ~= "private" then 
 			reply_delete("Use your crafting in the private chat with me.")
 			return
 		end
 
 		writeLog(data, "used craft")
-		local kb,str = renderCraftTypes(data, msg.from.username)
-		bot.sendMessage(msg.chat.id,"First equipe some itens, then craft the equipped itens\n".. renderSet(data):makeItCute().."\nItens:\n"..str.."\n\nChange itens with /rpgequip", "HTML", true, false, nil, kb)
+		local kb,str = renderCraftableItens(data, msg.from.username)
+		if edit then 
+			bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "First equipe some itens, then craft the equipped itens.\nChange itens with /rpgequip\n\n<b>with some itens equiped, select wich item you want to craft</b>", "HTML", nil, kb)
+		else 
+			bot.sendMessage(msg.chat.id,"First equipe some itens, then craft the equipped itens.\nChange itens with /rpgequip\n\n<b>with some itens equiped, select wich item you want to craft</b>", "HTML", true, false, nil, kb)
+		end
+		
 
 	end
 end
+
+
+
+function renderCraftableItens(data, uname)
+	--Should send only the items
+	local keyb = {}
+	keyb[1] = {}
+	local cnt = 0
+	local height = 1
+
+	local equip = ""
+	for i=SLOT_FIRST, SLOT_LAST do
+		cnt = cnt +1
+		if cnt > 1 then 
+			height = height +1
+			cnt = 1
+			keyb[height] = {}
+		end
+		keyb[height][cnt] = {text = whereTextEquip(i)..(data.equip[i] ~= 0 and items[data.equip[i][1]].name or "[nothing]").." "..(data.equip[i] ~= 0 and (items[data.equip[i][1]].desc or items[data.equip[i][1]].genDesc(data.equip[i])) or ""), callback_data = "cfti:"..uname..":"..i }
+	end
+
+	height  = height +1
+	keyb[height] = {}
+	 
+	height = height +1
+	
+
+	keyb[height] = {}
+	keyb[height][1] = {text = "❌Close❌", callback_data = "bp:"..uname..":0" }
+
+	local JSON = require("JSON")
+	local kb = JSON:encode({inline_keyboard = keyb})
+
+	return kb, "<bSelect a item to be crafted</b>"
+
+end
+
 
 
 if not stock then
@@ -886,7 +1480,7 @@ end
 local exchangeRate = 0.25
 
 function rpgLoad()
-	stock = configs["storestock"] or {[14]=1, [1] = 255, [2] = 255, [3] = 255, [4] = 20, [5] = 100, [6] = 100, [7] = 20, [8] = 90, [9] = 100, [17] = 0, [16] = 8, [15] = 8, [10] = 8, [11]=8 }
+	stock = configs["storestock"] or {[14]=1, [1] = 255, [2] = 255, [3] = 255, [4] = 20, [5] = 100, [6] = 100, [7] = 20, [8] = 90, [9] = 100, [17] = 0, [16] = 8, [15] = 8, [10] = 8, [11]=8,  [19] = 100, [60] = 10 , [61] = 200,[62] = 5 }
 	print("Loaded RPG!")
 end
 
@@ -894,14 +1488,24 @@ if not chests then
 	chests = {}
 end
 
-function makeChest()
+function makeChest(v)
 	local chest = {}
 
-	chest.max = math.random(5,10)
+	chest.max = math.random(10,20)
+	local given = {}
 	chest.count = 0
 
-	chest.reward = {exp=math.random(0,200), money=500, {5, 2}, {11, 2}, {1, 10}, {15, 2}}
-
+	chest.reward = {exp=math.random(100,500), money=math.random(0,3000) }
+	for i=1,math.random(3,6) do 
+		local id = droppable[math.random(1, #droppable)]
+		if not given[id] and (not v or (v and id ~= 62 and id ~= 4 and id ~= 17)) then 
+			given[id] = 1
+			chest.reward[#chest.reward+1] = {id,math.random(1,6)}
+		end
+	end
+	if math.random(0, 1000) <= 100 then 
+		chest.reward[#chest.reward+1] = {47, 1}
+	end
 	return chest
 end
 
@@ -920,8 +1524,8 @@ function processChestUse(msg)
 	local data = getUserRpg(msg.from.username)
 	if data then
 		
-		if not chests[chest][msg.from.username] then
-			chests[chest][msg.from.username] = true
+		if not chests[chest][msg.from.username] or (tonumber(chests[chest][msg.from.username]) and chests[chest][msg.from.username] <= os.time()) then
+			chests[chest][msg.from.username] = os.time() + 600 * 2
 
 			writeLog(data, "chest "..chest)
 
@@ -943,13 +1547,111 @@ function processChestUse(msg)
 			deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, kb)
 		else
 			print("uuh no", msg.from.username)
-			deploy_answerCallbackQuery(msg.id, "You cant loot twice")
+			deploy_answerCallbackQuery(msg.id, "You have to wait more "..(chests[chest][msg.from.username] - os.time()).." seconds to loot again!" )
 		end
 	else
 		print("No chest to ", msg.from.username)
 		deploy_answerCallbackQuery(msg.id, "You dont have a RPG character. Use /rpgstart ", "true")
 	end
 	SaveUser(msg.from.username)
+end
+
+function renderManaButtons(chest)
+	local keyb = {{},{},{},{}}
+	keyb[1][1] = {text = "Add 1 mana", callback_data = "rpg:pool:1:"..chest.id }
+	keyb[2][1] = {text = "Add 5 mana", callback_data = "rpg:pool:5:"..chest.id }
+	keyb[3][1] = {text = "Add 10 mana", callback_data = "rpg:pool:10:"..chest.id }
+	keyb[4][1] = {text = "Add All mana", callback_data = "rpg:pool:0:"..chest.id }
+		
+
+	local JSON = require("JSON")
+	local kb = JSON:encode({inline_keyboard = keyb})
+	return kb
+end
+
+function spawnManaPool(uname)
+
+	local chest = {
+		type="mana",
+		mana = 0,
+		max = math.random(200,300),
+		spawn=uname,
+		used={}
+	}
+	mistery[os.time()] = chest
+	mistery[os.time()].id = os.time()
+
+	local kb = renderManaButtons(chest)
+	--
+	local wut = bot.sendPhoto(RPGCHAT, 'mana-pool.jpg', "A mana pool its here.\n"..(uname and ("It was summoned by @"..uname.."") or "").."\nYou can add mana to to be appleased upon its completion!\n\n<b>Mana: 0/"..chest.max.."</b>", false, nil, kb, "HTML")
+	if wut.result and wut.result.message_id then
+		bot.pinChatMessage(RPGCHAT, wut.result.message_id)
+	end
+	chest.msg = wut
+end
+
+function processManaPool(msg, data, value, mbid)
+	mbid = tonumber(mbid)
+	value = tonumber(value)
+	if not mistery[mbid] then 
+		deploy_answerCallbackQuery(msg.id, "This manapool dont exist anymore!")
+		return
+	end
+	if value == 0 then 
+		value = math.max(1,data.mana)
+	end
+
+	if data.mana < value then 
+		deploy_answerCallbackQuery(msg.id, "You dont have enought mana!\nYou only have "..data.mana.."/"..getManaMax(data), "true")
+		return
+	end
+	local pool =  mistery[mbid]
+	if not pool.used[msg.from.username] then 
+		pool.used[msg.from.username] = 0
+	end
+
+
+	pool.used[msg.from.username] = pool.used[msg.from.username] + value
+
+	pool.mana = pool.mana + value
+	spentMana(data, value)
+
+	local kb = renderManaButtons(pool)
+	deploy_answerCallbackQuery(msg.id, "Added "..value.." mana!\nNow you have "..data.mana.."/"..getManaMax(data), "true")
+
+	bot.editMessageCaption(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, "A mana pool its here.\n"..(pool.spawn and ("It was summoned by @"..pool.spawn.."") or "").."\nYou can add mana to to be appleased upon its completion!\n\n<b>Mana: "..pool.mana.."/"..pool.max.."</b>\n\nID: "..mbid, kb, "HTML")
+
+
+	if mistery[mbid].mana >= mistery[mbid].max then
+		local total = mistery[mbid].max
+		local exp = 900 + total * 2
+		if pool.msg and pool.msg.result and pool.msg.result.message_id then
+			for i,b in pairs(pool.used) do
+				local data2 = getUserRpg(msg.from.username)
+				if data2 then
+					local helped = b/total 
+
+					gainExp(data2, helped* exp)
+					bot.sendMessage(users[i].telegramid, 'The mana pool you helped became a chest!\nAs you helped to fill '..string.format("%2.2f%%", helped* 100)..' of it, you won '..string.format("%d",exp*helped)..' exp!\n<a href="https://t.me/telerpg/'..pool.msg.result.message_id..'">[Go to message]</a>', "HTML")
+				end
+			end
+		end
+		--local prize = math.random(0, 1) 
+		--if prize == 1 then
+		mistery[mbid] = nil
+		local chest = makeChest(true)
+		chests[os.time()] = chest
+		chests[os.time()].id = os.time()
+
+		local kb = renderChestButtons(chest)
+		bot.editMessageCaption(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, "This mana pool became a chest containing "..formatReward2(chests[os.time()].reward), kb, "HTML")
+
+		bot.pinChatMessage(msg.message.chat.id, msg.message.message_id)
+	end
+end
+
+function spentMana(data, amount)
+	data.mana = data.mana - amount
 end
 
 function renderChestButtons(chest)
@@ -1036,6 +1738,7 @@ Or you can go in private chat with me, and say <b>/battle @username</b> to chall
 The winner steal some EXP and Money from the loser... Now, its possible that you are in a low HP.
 
 HP lost will regenerate 1 point per 20 seconds. But you can use some itens to heal!
+Your mana regenerate at 1 every 10 minutes.
 Use those itens using the command <b>/rpgbackpack</b>. 
 
 Ran out of itens? Buy/Sell some using <b>/rpgbuy</b> and <b>/rpgsell</b>
@@ -1060,6 +1763,7 @@ end
 function addGold(data, g)
 	local old = data.g
 	data.g = data.g +g
+	data.g = math.ceil(data.g)
 	writeLog(data, "change gold from "..old.." to "..data.g.." ("..g..")")
 end
 function startRpg(msg)
@@ -1216,7 +1920,14 @@ function addItem(data, id, amount)
 	if not added then 
 		data.bp[#data.bp+1] = {id, amount}
 		if items[id].equip then 
-			data.bp[#data.bp].attr = items[id].new(id)
+			local canAdd = {}
+
+			data.bp[#data.bp].slots = makeSlots(id) or 2
+			data.bp[#data.bp].attr = {}
+			for i=1, data.bp[#data.bp].slots do 
+				data.bp[#data.bp].attr[i] = selectModifier()
+			end
+			
 		end
 		added = data.bp[#data.bp]
 	end
@@ -1319,12 +2030,18 @@ function getVitality(data, text)
 end
 
 function formatMoney(amount)
-	local diamons = math.floor(amount/100)
-	local paper = amount%100
-	if amount == 0 then 
-		return "0💵"
+	if not amount then
+		return ""
 	end
-	return (diamons > 0 and (diamons.."💎 ") or "" )..(paper > 0 and (paper.."💵"	) or "")
+	local diamons = math.floor(amount/10000)
+	local paper = amount%10000
+	if amount == 0 then 
+		return "0💰" 
+	end
+	local coin = paper%100
+	paper = math.floor(paper/100)
+
+	return (diamons > 0 and (diamons.."💎 ") or "" )..(paper > 0 and (paper.."💵"	) or "")..(coin > 0 and (coin.."💰"	) or "")
 end
 
 function processBackpackUse(msg)
@@ -1352,6 +2069,11 @@ function processBackpackUse(msg)
 				return
 			end
 
+			if data.bp[item][2] <= 0 then 
+				table.remove(data.bp,item)
+				return
+			end
+
 			writeLog(data, "used backpack "..item) 
 
 			local ret, err = pcall(items[data.bp[item][1]].work,data, data.bp[item][2], msg.from.username)
@@ -1361,7 +2083,7 @@ function processBackpackUse(msg)
 			end
 			data.bp[item][2] = data.bp[item][2] - err[3]
 			local nnn = items[data.bp[item][1]].name
-			if data.bp[item][2] == 0 then 
+			if data.bp[item][2] <= 0 then 
 				table.remove(data.bp,item)
 			end
 			local mesage = "Used: "..tostring(err[3])..nnn.." -> "..err[2]..(ret and "\n\nStatus now:\n"..pullStats(data):gsub("<%l>", ""):gsub("</%l>", ""):gsub("</code>", ""):gsub("<code>", "") or "AVISA O MOCK PLZ")
@@ -1378,6 +2100,32 @@ function processBackpackUse(msg)
 		deploy_answerCallbackQuery(msg.id, "Você nao participa do rpg", "true")
 	end
 	SaveUser(msg.from.username)
+end
+
+
+function rpgDrop(msg, tgt)
+	local data = getUserRpg(msg.from.username)
+	if data then
+		if type(data.bp) == "string" then
+			data.bp = {}
+		end
+		if msg.chat.type ~= "private" then 
+			reply_delete("Use your backpack in the private chat with me.")
+			return
+		end
+		if #data.bp == 0 then
+			deploy_sendMessage(msg.chat.id, selectUsername(msg, true).."'s backpack is empty\n\n<b>Money: "..formatMoney(data.g).."</b>", "HTML")
+		end
+		tgt = tgt or msg.from.username
+		writeLog(data, "asked for drop")
+		local kb = renderBackpackButtons(data, msg.from.username, "rpg:drop:"..tgt, true)
+		bot.sendMessage(msg.chat.id, "Choose a item to be dropped to @"..tgt.."!\n\nYou can drop something to a person using /rpgdrop @username", "HTML", true, false, nil, kb)
+		
+	else 
+		say("Sorry, you dont have a rpg character. use /rpgstart to join")
+	end
+
+	
 end
 
 function buyItem(data, item)
@@ -1398,20 +2146,26 @@ function sellItem(data, item)
 		data.bp = {}
 	end
 	local removed = false
-	for i,b in pairs(data.bp) do 
-		if b[1] == item then 
-			b[2] = b[2] - 1
-			if b[2] == 0 then 
-				table.remove(data.bp, i)
-			end
-			removed = true
-			break
-		end
+	
+	local b = data.bp[item]
+	if not b then 
+		return false
 	end
+	if b[2] <= 0 then 
+		b[2] = 0
+		return false
+	end 
+	b[2] = b[2] - 1
+	if b[2] == 0 then 
+		table.remove(data.bp, item)
+	end
+	removed = true
+		
+	
 	if removed then
-		addGold(data, math.floor(items[item].price*exchangeRate))
-		writeLog(data, "sold item "..item.." for "..math.floor(items[item].price*exchangeRate))
-		return true
+		addGold(data, math.floor(items[b[1]].price*exchangeRate))
+		writeLog(data, "sold item "..item.." for "..math.floor(items[b[1]].price*exchangeRate))
+		return true, b[1]
 	end
 	writeLog(data, "failed to sell item "..item)
 	return false
@@ -1481,11 +2235,13 @@ quests = {
 	[3] = {desc="Use an /hoje or /today command in a chat", reward={exp=30, money=110,  {3, 3}, {15, 1} }, max = 1	},
 	[4] = {desc="Go hunt with /rpgloot 4 times", reward={exp=100, money=310,  {3, 2}, {18, 1}, {15, 1} }, max = 4	},
 	[5] = {desc="Win a battle with /battle", reward={exp=40, money=310,  {7, 1}, {16, 1},}, max = 1	},
+	[6] = {desc="Drop a item in the main chat using /rpgdrop", reward={exp=40, money=310,  {7, 1}, {16, 1},}, max = 1	},
+	--[7] = {desc="Earn a total of 1000 exp", reward={exp=20, money=1010,  {11, 1}, {12, 1},}, max = 1000	},
 
 }
 
 quests[1].task = function(msg, data, prog, arg)
-	if not msg then
+	if not msg or not msg.chat.id then
 		return
 	end
 
@@ -1498,7 +2254,7 @@ quests[1].task = function(msg, data, prog, arg)
 end
 
 quests[2].task = function(msg, data, prog, arg)
-	if not msg then
+	if not msg or not msg.chat.id  then
 		return
 	end
 	
@@ -1524,7 +2280,7 @@ quests[2].task = function(msg, data, prog, arg)
 end
 
 quests[3].task = function(msg, data, prog, arg)
-	if not msg then
+	if not msg or not msg.chat.id then
 		return
 	end
 	if chats[msg.chat.id] then 
@@ -1549,6 +2305,22 @@ quests[5].task = function(msg, data, prog, arg)
 	print("Task to ", data.id.." -> ", arg)
 	prog.counter = prog.counter +1
 end
+
+quests[6].task = function(msg, data, prog, arg)
+	if arg ~= "rpgdrop" then
+		return
+	end
+	print("Task to ", data.id.." -> ", arg)
+	prog.counter = prog.counter +1
+end
+--[[
+quests[7].task = function(msg, data, prog, arg, cnt)
+	if arg ~= "rpgexp" then
+		return
+	end
+	print("Task to ", data.id.." -> ", arg)
+	prog.counter = prog.counter + cnt
+end]]
 
 function formatReward(prize)
 
@@ -1594,7 +2366,8 @@ function giveReward(data, prize, what)
 	deploy_sendMessage(data.id, what ..formatReward(prize), "HTML")
 end
 
-function checkQuestInner(data, username, msg, arg)
+function checkQuestInner(data, username, msg, arg, amount)
+	amount = tonumber(amount or 1) or 1
 	if type(username) == 'table' then
 		for i,b in pairs(users) do 
 			if b.telegramid == username.id then 
@@ -1615,7 +2388,7 @@ function checkQuestInner(data, username, msg, arg)
 
 		--process quest progress
 
-		quests[qid].task(msg, data, prog, arg)
+		quests[qid].task(msg, data, prog, arg, amount)
 
 		if prog.failed then 
 			deploy_sendMessage(data.id, "✴️ou failed your quest!✴️", "HTML")
@@ -1627,13 +2400,15 @@ function checkQuestInner(data, username, msg, arg)
 
 		if quests[qid].max <= prog.counter then 
 			if msg then
-				local m1 = bot.sendMessage(msg.chat.id, "🎉", "HTML", nil, nil, msg.message_id)
+				if msg.chat then
+					local m1 = bot.sendMessage(msg.chat.id, "🎉", "HTML", nil, nil, msg.message_id)
 
-				scheduleEvent(10, function()
-					if m1.ok then
-						deploy_deleteMessage(m1.result.chat.id,m1.result.message_id)
-					end
-				end)
+					scheduleEvent(10, function()
+						if m1.ok then
+							deploy_deleteMessage(m1.result.chat.id,m1.result.message_id)
+						end
+					end)
+				end
 			end
 
 			giveReward(data, quests[qid].reward, "You finished quest <b>"..qid.."</b> and received:\n")
@@ -1697,8 +2472,9 @@ end
 function rpgQuit( msg )
 	local data = getUserRpg(msg.from.username)
 	if data then
-		users[msg.from.username].rpg_old = data
+		users[msg.from.username].rpg_old = users[msg.from.username].rpg
 		users[msg.from.username].rpg = nil
+		say_admin("Ele saiu: "..msg.from.username)
 		reply("You are not playing anymore.\nYou can start again with the same character with /rpgstart")
 		SaveUser(msg.from.username)
 	end
@@ -1981,27 +2757,44 @@ function processSkillPoint(msg)
 	end
 end
 
+function swapToSellEquips(msg, data)
+	deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, renderSellButtons(data, 1, true))
+end
+
+function swapToSellRegular(msg, data)
+	deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, renderSellButtons(data, 1, false))
+end
+
+
 function processSellItem(msg)
 	SaveUser(msg.from.username)
 	local data = getUserRpg(msg.from.username)
 	if data then
 		local id = msg.data:match("sell:(%d+)")
 		id = tonumber(id)
-		if not items[id] then 
+		if not data.bp[id] then 
 			deploy_answerCallbackQuery(msg.id, "Unknow item", "true")
 		else
 			writeLog(data, "tried to sell "..id)
-			if sellItem(data, id) then
-				deploy_answerCallbackQuery(msg.id, "You sold "..items[id].name.." for "..formatMoney(math.floor(items[id].price*exchangeRate) ).. "\nNow you have "..formatMoney(data.g), "true")
-				if items[id].stock then
-					stock[id] = (stock[id] or 0) +1
+			local succes, soldid = sellItem(data, id)
+			if succes then
+				deploy_answerCallbackQuery(msg.id, "You sold "..items[soldid].name.." for "..formatMoney(math.floor(items[soldid].price*exchangeRate) ).. "\nNow you have "..formatMoney(data.g), "true")
+				if items[soldid].stock then
+					stock[soldid] = (stock[soldid] or 0) +1
 				end
+
 				deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, renderSellButtons(data, 1))
 				
 
 				 rpgSave()
 			else 
-				deploy_answerCallbackQuery(msg.id, "You dont have this item ("..items[id].name..") to sell.", "true")
+				if not items[soldid] then 
+					deploy_answerCallbackQuery(msg.id, "??", "true")
+					deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, renderSellButtons(data, 1))
+				
+					return
+				end
+				deploy_answerCallbackQuery(msg.id, "You dont have this item ("..items[soldid].name..") to sell.", "true")
 			end
 			--
 		end
@@ -2025,22 +2818,24 @@ end
  
 function spawSomething()
 	local id = os.time()
-	monsters[id] = blankStats()
-	monsters[id].name = "Evady Mc. evade face"
-	monsters[id].hm= 800
-	monsters[id].h = 800
-	monsters[id].a = 20
-	monsters[id].d = 300
-	monsters[id].e = 500
+	monsters[id] = blankStats() 
+	monsters[id].name = "BIG NUGG BOI"
+	monsters[id].hm= 500000
+	monsters[id].h = 500000
+	monsters[id].a = 8
+	monsters[id].d = 30
+	monsters[id].e = 8
 	monsters[id].helper = {}
 	monsters[id].id = id
-	monsters[id].exp = 1000
-	monsters[id].g = 1250
+	monsters[id].exp = 10000
+	monsters[id].g =   30000
 		--sendPhoto(chat_id, photo, caption, disable_notification, reply_to_message_id, reply_markup, parse)
-	monsters[id].msg =bot.sendDocument(g_chatid, 'CgADAQADOAADxRIAAUbtrXZvQ_u5NRYE', "The "..monsters[id].name.." has been spawned!\n\nHealth: "..monsters[id].h.."\nAttack:"..getAttack(monsters[id]).."\nDefense:"..monsters[id].d.."\n\nIt carries: "..monsters[id].exp.." XP and "..formatMoney(monsters[id].g), false, nil, formatMobButton(monsters[id]), "HTML")
+	monsters[id].msg =bot.sendDocument(g_chatid, 'CgACAgQAAxkBAAECAZRfDewYYrsJYyXqbl_X5aabH7OZcQACZQADPpg9URBNuxSsCY13GgQ', "The <b>"..monsters[id].name.."</b> has been spawned!\n\nHealth: "..monsters[id].h.."\nAttack:"..getAttack(monsters[id]).."\nDefense:"..monsters[id].d.."\n\nIt carries: "..monsters[id].exp.." XP and "..formatMoney(monsters[id].g), false, nil, formatMobButton(monsters[id]), "HTML")
 
 	--monsters[id].msg = bot.sendMessage(g_chatid, "The "..monsters[id].name.." has been spawned!\n\nHealth: "..monsters[id].h.."\nAttack:"..getAttack(monsters[id]).."\nDefense:"..monsters[id].d.."\n\nIt carries: "..monsters[id].exp.." XP and "..formatMoney(monsters[id].g), "HTML", true, false, nil, formatMobButton(monsters[id]))
 end
+
+--spawSomething()
 
 function printMonster(id)
 	bot.sendMessage(g_chatid, "The "..monsters[id].name.." has been spawned!\n\nHealth: "..monsters[id].h.."\nAttack:"..getAttack(monsters[id]).."\nDefense:"..getDefense(monsters[id]).."\n\nIt carries: "..monsters[id].exp.." XP and "..formatMoney(monsters[id].g), "HTML", true, false, nil, formatMobButton(monsters[id]))
@@ -2055,12 +2850,13 @@ function processCombat(msg)
 		if not monsters[id] then 
 			deploy_answerCallbackQuery(msg.id, "Unknow monster o dead monster", "true")
 		else
+			print("PUNCHING: "..msg.from.username)
 			if not data.cd or data.cd < os.time() then
 				if data.h <= 0 then 
 					deploy_answerCallbackQuery(msg.id,  "You dont have enought health!", "true")
 					return
 				end
-				data.cd = os.time() +10
+				data.cd = os.time() +2
 				local bd = {
 					firstTurn = true,
 					tire = 1,
@@ -2083,6 +2879,7 @@ function processCombat(msg)
 				data.h = math.min(data.h, data.hm)
 
 				local inital = monsters[id].h
+				local mh = data.h
 
 				repeat 
 					loge = loge ..turn( data, monsters[id], bd )
@@ -2116,6 +2913,7 @@ function processCombat(msg)
 				loge = loge.."\n"..monsters[id].n.." health is ["..math.max(monsters[id].h,0).."/"..monsters[id].hm.."]"
 				--loge = loge.."\nTotal damage you dealt: "..monsters[id].helper[msg.from.username].." dmg"
 				--print(loge)
+
 				if data.h <= 0 then 
 					local drain = math.floor(data.exp * 0.1)
 					local minExp = ((data.exp-drain) - getExpToLevel(data.lvl) )
@@ -2134,10 +2932,11 @@ function processCombat(msg)
 				monsters[id].tdmg = nil
 				data.tdmg = nil
 				monsters[id].rep = nil
-				data.rep = nil
+				data.rep = nil   
 
-				
-				deploy_answerCallbackQuery(msg.id, loge:len() > 200 and "Battle log sent on private\nTLDR: You dealt "..dealt.." damage" or loge:gsub("<%l>",""):gsub("</%l>",""):gsub("</code>", ""):gsub("<code>", ""), "true")
+				local took = mh-data.h
+			
+				deploy_answerCallbackQuery(msg.id, loge:len() > 200 and ("Battle log sent on private\nTLDR: You dealt "..dealt.." damage and took "..took.." damage") or loge:gsub("<%l>",""):gsub("</%l>",""):gsub("</code>", ""):gsub("<code>", ""), "true")
 
 				if monsters[id].h <= 0 then 
 					local total = 0
@@ -2156,7 +2955,13 @@ function processCombat(msg)
 					end 
 					logText("RPG", str)
 					
-					deploy_sendMessage(msg.message.chat.id, "The "..monsters[id].name.." <b>is dead!</b>\n"..str, "HTML")
+					local res = bot.sendMessage(msg.message.chat.id, "The "..monsters[id].name.." <b>is dead!</b>\n"..str, "HTML")
+					if not res.ok then 
+						res = bot.sendMessage(msg.message.chat.id, "The "..monsters[id].name.." <b>is dead!</b>\n"..str)
+						if not res.ok then 
+							say_big("The "..monsters[id].name.." <b>is dead!</b>\n"..str)
+						end
+					end
 					monsters[id] = nil
 					return
 				end
@@ -2164,7 +2969,7 @@ function processCombat(msg)
 				deploy_editMessageReplyMarkup(msg.message.chat.id, msg.message.message_id, msg.inline_message_id, formatMobButton(monsters[id]))
 				--bot.editMessageText(msg.message.chat.id, msg.message.message_id, msg.id, "The "..monsters[id].name.." has been spawned!\n\nHealth: "..monsters[id].h.."\nAttack:"..monsters[id].a.."\nDefense:"..monsters[id].d, "HTML", nil ,formatMobButton(monsters[id]))
 			else 
-				data.cd = data.cd + 3
+				data.cd = data.cd + 1
 				deploy_answerCallbackQuery(msg.id, "Too fast! As a penalty you will have to wait more "..(data.cd-os.time()).." seconds.", "true")
 			end
 		end
@@ -2276,37 +3081,67 @@ function showBpFast(msg)
 	end
 end
 
-function renderSellButtons(data, e)
+function renderSellButtons(data, e, onlyEquip)
 	local keyb = {}
 		keyb[1] = {}
 		local cnt = 0
 		local height = 1
 
-		local onlyK = {}
+		--[[local onlyK = {}
 		for i=1,#data.bp do 
-			onlyK[data.bp[i][1]] = (onlyK[data.bp[1]] or 0) + data.bp[i][2]
-		end
+			if onlyEquip then 
+				if items[data.bp[1] ].equip then
+					onlyK[i] = (onlyK[data.bp[1] ] or 0) + data.bp[i][2]
+				end
+			else
+				if not items[data.bp[1] ].equip then
+					onlyK[i] = (onlyK[data.bp[1] ] or 0) + data.bp[i][2]
+				end
+			end
+		end]]
 
 	
-		for i,b in pairs(items) do
+		--[[for i,b in pairs(items) do
 			if b.name and b.price > 0 then
 
 				if not e or onlyK[i] then
-					cnt = cnt +1
-					if cnt > 3 then 
-						height = height +1
-						cnt = 1
-						keyb[height] = {}
 					end
-				
-					keyb[height][cnt] = {text = (e and ("("..(onlyK[i] or 0)..") ") or "").. b.name.." > "..formatMoney(math.floor(b.price*exchangeRate)), callback_data = "sell:"..i }
-				end
 			end
+		end]]
+		for i,b in pairs(data.bp) do 
+
+			local canShow = false 
+			if onlyEquip then 
+				if items[b[1] ].equip then
+					canShow = true
+				end
+			else
+				if not items[b[1] ].equip then
+					canShow = true
+				end
+			
+			end 
+
+			if canShow then
+				cnt = cnt +1
+				if cnt > 3 then 
+					height = height +1
+					cnt = 1
+					keyb[height] = {}
+				end
+				keyb[height][cnt] = {text = (b[2].." ")..items[b[1]].name..(items[b[1]].equip and items[b[1]].genDesc(b) or "").." > "..formatMoney(math.floor(items[b[1]].price*exchangeRate)), callback_data = "sell:"..i }
+			end	
 		end
 		keyb[height+1] = {}
 		keyb[height+1][1] = {text = "❓💵How much do i have?💵❓", callback_data = "moneyplz" }
 		keyb[height+2] = {}
 		keyb[height+2][1] = {text = "🎒Whats in my backpack?🎒", callback_data = "bpplz" }
+		keyb[height+3] = {}
+		if onlyEquip then 
+			keyb[height+3][1] = {text = "🥇Sell items🥇", callback_data = "rpg:itempls" }
+		else
+			keyb[height+3][1] = {text = "🗡Sell equipaments🗡", callback_data = "rpg:equippls" }
+		end
 		local JSON = require("JSON")
 		local kb = JSON:encode({inline_keyboard = keyb})
 	return kb
@@ -2320,7 +3155,7 @@ function renderShopSell(msg, e)
 		end
 
 		
-		local wut = bot.sendMessage(msg.chat.id, "Shop is open! Com and grab!\n\n📈📈<b>YOU ARE SELLING</b>📈📈\n💎=100💵\nSTONKS\nThere is a official group for the RPG https://t.me/telerpg", "HTML", true, false, nil, renderSellButtons(data, e))
+		local wut = bot.sendMessage(msg.chat.id, "Shop is open! Com and grab!\n\n📈📈<b>YOU ARE SELLING</b>📈📈\n💎=100💵\nSTONKS\nThere is a official group for the RPG https://t.me/telerpg", "HTML", true, false, nil, renderSellButtons(data, e, false))
 		
 		writeLog(data, "asked for sell shop")
 		if msg.chat.type ~= "private" then 
@@ -2387,16 +3222,17 @@ function renderShopBuy(msg)
 	end
 end
 
-function renderBackpackButtons(data, uname)
+function renderBackpackButtons(data, uname, act, showEquip)
 	local keyb = {}
 	keyb[1] = {}
+	act = act or "bp"
 	local cnt = 0
 	local height = 1
 	local str = ""
 	local equip = ""
 	for i=1,#data.bp do
 		
-		if items[data.bp[i][1]].equip then 
+		if not showEquip and items[data.bp[i][1]].equip then 
 			equip = equip .. items[data.bp[i][1]].name.." - <i>"..whereTextEquip(items[data.bp[i][1]].equip)..' '..(items[data.bp[i][1]].desc or items[data.bp[i][1]].genDesc(data.bp[i])).."</i>\n"
 			--keyb[height][cnt] = {text = items[data.bp[i][1]].name.." "..data.bp[i][2].."x", callback_data = "it:"..uname..":"..i }
 		else 
@@ -2406,8 +3242,8 @@ function renderBackpackButtons(data, uname)
 				cnt = 1
 				keyb[height] = {}
 			end
-			str = str .. items[data.bp[i][1]].name.." - <i>"..(items[data.bp[i][1]].desc or items[data.bp[i][1]].genDesc()).."</i>\n"
-			keyb[height][cnt] = {text = items[data.bp[i][1]].name.." "..data.bp[i][2].."x", callback_data = "bp:"..uname..":"..i }
+			str = str .. items[data.bp[i][1]].name.." - <i>"..(items[data.bp[i][1]].desc or items[data.bp[i][1]].genDesc(data.bp[i])).."</i>\n"
+			keyb[height][cnt] = {text = renderItem(data.bp[i]).." "..data.bp[i][2].."x", callback_data = act..":"..uname..":"..i }
 		end
 		
 		
@@ -2416,7 +3252,13 @@ function renderBackpackButtons(data, uname)
 	keyb[height+1][1] = {text = "❌Close❌", callback_data = "bp:"..uname..":0" }
 	local JSON = require("JSON")
 	local kb = JSON:encode({inline_keyboard = keyb})
-	return kb, str..(equip:len() > 0 and ("\nEquipaments (/rpgequip): \n"..equip) or "")
+	
+	if #(str..(equip:len() > 0 and ("\nEquipaments (/rpgequip + /rpgcraft): \n"..equip) or "")) > 2000 then 
+		str = str .."\n\n<b>Too much items!</b>"
+	else 
+		str = str..(equip:len() > 0 and ("\nEquipaments (/rpgequip + /rpgcraft): \n"..equip) or "")
+	end
+	return kb, str
 end
 
 function renderBackpack(msg)
@@ -2434,7 +3276,11 @@ function renderBackpack(msg)
 		end
 		writeLog(data, "asked for backpack")
 		local kb,str = renderBackpackButtons(data, msg.from.username)
+
 		local wut = bot.sendMessage(msg.chat.id, selectUsername(msg, true).."'s backpack\n\n"..str.."\n\n<b>Money: "..formatMoney(data.g).."</b>\n( /rpgbackpack )", "HTML", true, false, nil, kb)
+		if not wut.ok then 
+			say_big("BUG:"..Dump(wut))
+		end
 		if msg.chat.type ~= "private" then 
 			scheduleEvent(20, function()
 				if wut and wut.ok then
@@ -2460,6 +3306,17 @@ function updateHealthByTicks(data)
 		local health = math.floor(diff/20)
 		data.t = os.time() + 20 - (diff%20)
 		data.h = data.h + health * getAttributePercent(data, ITEM_CLASS_HEAL)
+
+
+		
+	end
+	local rate = 600
+	if data.tm and data.tm <= os.time() then 
+		local diff = os.time()-(data.tm-rate)
+		local mana = math.floor(diff/rate)
+		data.tm = os.time() + rate - (diff%rate)
+		data.mana = data.mana + mana 
+		data.mana = math.min(data.mana, getManaMax(data))
 	end
 end
 
@@ -2518,10 +3375,12 @@ function gainExp(data, addExp, notify, place, noMultiply)
 	end
 	local xp = getExpToLevel(data.lvl+1)
 
-	data.exp = data.exp + addExp
+	data.exp = math.ceil(data.exp + addExp)
 	local old = g_bot
 	setBot("rpg")
 	local n = 0
+
+
 	while xp <= data.exp do
         data.lvl = data.lvl +1
 
@@ -2600,11 +3459,25 @@ function maxHealth(data)
 	return (getVitality(data) + ((data.lvl-1) * 8) + getAttributeModifier(data, ITEM_CLASS_HEALTH)) * getAttributePercent(data, ITEM_CLASS_HEALTH_MAX)
 end
 
+function getManaMax(data)
+	return 5 + math.floor((data.lvl/2))
+end
+
 function getUserRpg(who)
-	if not users[who] then 
-		return nil
+	local usr = users[who]
+	if not usr then 
+		return nil, 0
 	end
-	return users[who].rpg
+	local r = usr.rpg
+	if not r then 
+		return nil, 1
+	end
+	if not r.mana then 
+		r.tm = os.time()
+		r.mana = 1
+		SaveUser(who)
+	end
+	return r
 end
 function reestock()
 	local dropc = 1
@@ -2618,7 +3491,7 @@ function reestock()
 	for i=1,10 do 
 		for i,b in pairs(items) do 
 			if type(i) == 'number' and i <= 19 then 
-				if math.random(0,1000) < b.prob and not b.nore then 
+				if math.random(0,100000) < b.prob and not b.nore then 
 					dropch[#dropch+1] = i
 				end
 			end
@@ -2671,7 +3544,7 @@ function  rpgLoot(msg)
 			if not data.noloot then 
 				data.noloot = 0
 			end
-			if more <= 1 then 
+			--[[if more <= 1 then 
 				data.noloot = data.noloot + 1
 				if data.noloot >= 20 then
 					if data.noloot >= 25 then
@@ -2689,7 +3562,7 @@ function  rpgLoot(msg)
 				end
 			elseif more >= 3 then 
 				data.noloot = 0
-			end
+			end]]
 
 
 			
@@ -2701,15 +3574,15 @@ function  rpgLoot(msg)
 			
 			local dropc = math.random(0,100) <= (80 - 60 * extra) and 1 or 0
 			local ne = 0
-			for a=1, 1+math.floor( math.min(15, more/10)) do
+			for a=1, 1+math.floor( math.min(25, more/10)) do
 				ne = ne +1
-				money = money +  math.random(1,80)
+				money = money +  math.random(1,110)
 
-				exp = exp + ((math.random(0,100) <= 40) and math.random(1,10) or 0)
+				exp = exp + ((math.random(0,100) <= 40) and math.random(5,50) or 0)
 
 		
 				for i=1,6 do
-					if math.random(0,1000) <= (400) then 
+					if math.random(0,1000) <= (300) then 
 						break
 					end
 					dropc = dropc +1 
@@ -2717,10 +3590,10 @@ function  rpgLoot(msg)
 			end
 
 			local dropch = {}
-			for i=1,10 do 
+			for i=1,20 do 
 				for i,b in pairs(items) do 
 					if type(i) == 'number' then 
-						if b.prob ~= 0 and math.random(0,1000) < b.prob then 
+						if b.prob ~= 0 and math.random(0,100000) < b.prob then 
 							dropch[#dropch+1] = i
 						end
 					end
@@ -2732,6 +3605,7 @@ function  rpgLoot(msg)
 			end
 			writeLog(data, "is looting")
 
+			local dorps = {}
 			if #dropch == 0 or dropc == 0 then 
 				g_sayMode = "HTML"
 
@@ -2749,10 +3623,17 @@ function  rpgLoot(msg)
 					local dropId = dropch[math.random(1,#dropch)]
 					uitems[dropId] = (uitems[dropId] or 0) +1
 					--found = found.. "* "..items[dropId].name.."\n"
-					addItem(data, dropId, 1)
+					
 				end
+	
 				for i,b in pairs(uitems) do 
-					found = found.. "* "..b..items[i].name.."\n"
+					local it = addItem(data, i, (items[i].equip and 1 or b))
+					found = found.. "* "..(items[i].equip and 1 or b).." "..items[i].name
+					if items[i].equip then 
+						found = found .. items[it[1]].genDesc(it)
+					end
+					found = found .. "\n"
+					dorps[#dorps+1] = i
 				end
 				g_sayMode = "HTML"
 				wut = reply(missed.."<i>You went hunting and found:</i>\n"..found..(exp > 0 and ("<b>+ "..exp.." EXP</b>") or ""  ).."\nAlso "..formatMoney(money).."\nUse /rpgbackpack to access inventory\nReestocked: "..w)
@@ -2767,6 +3648,19 @@ function  rpgLoot(msg)
 			checkQuestInner(data, msg.from.username, msg, "rpgloot")
 			used = true
 			data.loot = os.time() + 60 * 5
+
+			msg.chat.id = RPGCHAT
+			if  math.random(0,1000) <= 10 then 
+				spawnMisteryBox(msg)
+			end
+			if  math.random(0,1000) <= 10 then 
+				renderChest(msg)
+			end
+			if math.random(0,1000) <= (100) and #dorps >= 2 then 
+				local dropid = os.time()
+				rpg_dropped_items[dropid] = {dorps[math.random(1, #dorps)], math.random(1,3)}
+				displayDroppedItem(RPGCHAT, rpg_dropped_items[dropid], msg.from.username, dropid)
+			end
 		else
 			g_sayMode = "HTML"
 			local left = data.loot - os.time()
@@ -2799,6 +3693,7 @@ function pullStats(data, tool)
 	data.e = data.e or 1
 	local str = "<b>Exp: %d</b> <i>(%2.2f%% need %d)</i>\n<b>Level: %d</b> <code>"..renderProgress(got/need).."</code>\n<b>ATK:</b> %s\n<b>DEF:</b> %s\n<b>AGI:</b> %s\n<b>HP:</b> %d/%d\n<b>Money:</b> "..formatMoney(data.g)
 	if not tool then 
+		str = str.."\n".. ("<b>Mana</b> "..data.mana.."/"..getManaMax(data))
 		str = str.."\n"..(data.s > 0 and ("<b>Skill points:</b> "..data.s.." (use /rpgskills on private)") or "")
 
 	end
@@ -2838,7 +3733,7 @@ function pullTrueStats(data)
 	local got  = data.exp-from
 
 	data.e = data.e or 1
-	local str = "<b>Exp: %d</b> <i>(%2.2f%% need %d)</i>\n<b>Level: %d</b>\n<code>"..renderProgress(got/need, 15).."</code>\n<b>•ATK:</b> %s\n<b>•DEF:</b> %s\n<b>•AGI:</b> %s\n<b>•HP:</b> %d/%d\n<b>•Money:</b> "..formatMoney(data.g).."\n<code>Critical: %2.2f%%\nEvasion: %2.2f %%\nAccuracy: %2.2f %%\nBlock: %2.2f %%\nMax damage: %d\n</code>"
+	local str = "<b>Exp: %d</b> <i>(%2.2f%% need %d)</i>\n<b>Level: %d</b>\n<code>"..renderProgress(got/need, 15).."</code>\n<b>•ATK:</b> %s\n<b>•DEF:</b> %s\n<b>•AGI:</b> %s\n<b>•HP:</b> %d/%d\n<b>•Mana</b> %d/%d\n<b>•Money:</b> "..formatMoney(data.g).."\n<code>Critical: %2.2f%%\nEvasion: %2.2f %%\nAccuracy: %2.2f %%\nBlock: %2.2f %%\nMax damage: %d\n</code>"
 	if not tool then 
 		str = str.."\n"..(data.s > 0 and ("<b>Skill points:</b> "..data.s.." (use /rpgskills on private)") or "")
 
@@ -2849,6 +3744,7 @@ function pullTrueStats(data)
 		tostring(getEvasion(data)..(" <code>("..getEvasion(data, true)..")</code>") ):gsub("%%","%%"), 
 		
 		data.h, health,
+		data.mana, getManaMax(data),
 		math.min(75 , (4 + math.min(70,(getAttack(data)/80 + getEvasion(data)/60) ) ) * getAttributePercent(data, ITEM_CLASS_CRITICAL) ),
 
 		getEvadeChance(data) / 10,
@@ -2955,37 +3851,98 @@ function attack( a,b, bd )
 	--log = "["..dmg.."/"..def.."] "
 	--dmg = math.random(dmg/2, dmg)
 	dmg = math.floor(dmg * math.pow(bd.tire, 1/6))
-	def = math.floor(def)
+	def = math.ceil(def)
 
 
 
 	if selfDamage then 
 		--dmg = math.ceil(a.tdmg and (getAttack(a)*1.5) or math.max(1,math.floor(dmg - def*0.8)))
 		dmg, crit = critical(a, dmg) 
+		
+
+		dmg = math.floor((1 + getAttributePercent(a, ITEM_CLASS_DAMAGE_AMP) - getAttributePercent(b, ITEM_CLASS_DAMAGE_RED)) * dmg)
 		log = log .. " dealing <i>"..(a.tdmg and "❗️" or "")..dmg..(a.tdmg and "❗️" or "")..crit.." damage</i>."
+
 		b.h = b.h - dmg
+
+		local drain = math.floor((getAttributePercent(a, ITEM_CLASS_LIFEDRAIN)-1) * dmg) * (1+((1-getAttributePercent(a, ITEM_CLASS_HEAL)/8)))
+		a.h = a.h + drain
+		if (drain > 1) then 
+			log = log .. ' <pre>Drained '..(drain)..' life.</pre>'
+		end
+
 		a.tdmg = nil
 		return log
 	end
 
+
 	if (math.random(0,1000) <= evadePerc) and not a.tdmg then 
+
+		evadePerc = math.random(evadePerc/2, evadePerc)
+		local oldAccuracy = accuracyPerc
+		accuracyPerc = math.random(accuracyPerc/2, accuracyPerc)
+
 		if accuracyPerc <=  evadePerc then
 			return log.." but "..b.n.." evaded!"
 		end
+		accuracyPerc = oldAccuracy
+	end
+
+	if ((getAttributePercent(a, ITEM_CLASS_INSTAKILL) -1) * 100) > math.random(0, 1000) then 
+		b.h = 0
+		return log .." <u>was a insta kill!</u>."
 	end
 	
 
 	--if dmg > def or a.tdmg or math.random(0,1000) <= accuracyPerc then
 		
-	dmg = dmg - def * 0.8
-	--print("Reduction of ", def)
+	dmg = dmg - def * 2.2
 
-	if not a.tdmg and  (dmg <= 0 or math.random(0,1000) <= calculateBlockChance(b)) then
+	if dmg <= 0 then 
+
+		dmg = math.ceil(dmg*(-0.6))
+		if dmg == 0 or  (math.random(0,1000) <= getEvadeChance(a)/4) then 
+			return log .." <u>🛡but was blocked🛡</u>."
+		end
+		dmg, crit = critical(a, dmg) 
+
+		dmg = (1 + getAttributePercent(b, ITEM_CLASS_DAMAGE_AMP) - getAttributePercent(a, ITEM_CLASS_DAMAGE_RED)) * dmg
+
+		local drain = math.floor((getAttributePercent(a, ITEM_CLASS_LIFEDRAIN)-1) * dmg) * (1+((1-getAttributePercent(a, ITEM_CLASS_HEAL)/8)))
+		b.h = b.h + drain
+		if (drain > 1) then 
+			log = log .. ' <pre>Drained '..(drain)..' life.</pre>'
+		end
+
+		a.h = a.h - dmg
+		log = log .. " <u>🛡but was blocked🛡</u> and "..b.n.." dealt <b>"..dmg..crit.." damage </b> as <i>parry</i> on "..a.n.."."
+		if (drain > 1) then 
+			log = log .. ' Drained '..(drain)..' life.'
+		end
+		return log
+	end
+
+
+	if not a.tdmg and  ( math.random(0,1000) <= (calculateBlockChance(b) - accuracyPerc/2 ) ) then
 		if calculateBlockChance(b) > getEvadeChance(a) then 
-			dmg = getDefense(b)/2
+			dmg = getDefense(b)*3
 			dmg, crit = critical(a, dmg) 
+
+			dmg = math.floor((1 + getAttributePercent(b, ITEM_CLASS_DAMAGE_AMP) - getAttributePercent(a, ITEM_CLASS_DAMAGE_RED)) * dmg)
+
 			a.h = a.h - dmg
-			log = log .. " <u>🛡but was blocked🛡</u> and "..b.n.." dealt <b>"..dmg..crit.." damage </b> in <i>reflect</i> on "..a.n.."."
+
+			local drain = math.floor((getAttributePercent(b, ITEM_CLASS_LIFEDRAIN)-1) * dmg) * (1+((1-getAttributePercent(a, ITEM_CLASS_HEAL)/8)))
+			b.h = b.h + drain
+			if (drain > 1) then 
+				log = log .. ' <pre>Drained '..(drain)..' life.</pre>'
+			end
+
+
+			log = log .. " <u>🛡but was blocked🛡</u> and "..b.n.." dealt <b>"..dmg..crit.." damage </b> as <i>reflect</i> on "..a.n.."."
+			if (drain > 1) then 
+				log = log .. ' Drained '..(drain)..' life.'
+			end
 			return log
 		else
 			return log .." <u>🛡but was blocked🛡</u>."
@@ -2995,8 +3952,21 @@ function attack( a,b, bd )
 	
 	local crit = ""
 	dmg, crit = critical(a, dmg) 
-	log = log .. " dealing <i>"..(a.tdmg and "❗️" or "")..dmg..(a.tdmg and "❗️" or "")..crit.." damage</i>."
+
+	
+
+
+	dmg = math.floor((1 + getAttributePercent(a, ITEM_CLASS_DAMAGE_AMP) - getAttributePercent(b, ITEM_CLASS_DAMAGE_RED)) * dmg)
+
+	log = log .. " dealing <b>"..(a.tdmg and "❗️" or "")..dmg..(a.tdmg and "❗️" or "")..crit.." damage</b>."
 	b.h = b.h - dmg
+
+	local drain = math.floor((getAttributePercent(a, ITEM_CLASS_LIFEDRAIN)-1) * dmg) * (1+((1-getAttributePercent(a, ITEM_CLASS_HEAL)/8)))
+	a.h = a.h + drain
+	if (drain > 1) then 
+		log = log .. ' Drained '..(drain)..' life.'
+	end
+
 	a.tdmg = nil
 
 	--[[else 
@@ -3040,7 +4010,7 @@ function turn_moreatk(a,b, bd)
 end
 
 function turn_heal(a,b, bd)
-	local heal = math.floor(math.random(5,25)* getAttributePercent(a, ITEM_CLASS_HEAL) * getAttributePercent(a, ITEM_CLASS_TEMP))
+	local heal = math.floor( ( math.random(5,25) * (1/4 * a.lvl) )* getAttributePercent(a, ITEM_CLASS_HEAL) * getAttributePercent(a, ITEM_CLASS_TEMP))
 	a.h = a.h + heal 
 	return "took theturn to heal himself. <b>+"..heal.." HP</b>." , "💚"
 end
@@ -3081,16 +4051,17 @@ function turn(a,b, bd)
 	local emoj = ""
 
 
-		local moveStat = math.min(70,getEvasion(a)/20)
-		local acc = getAccuracyChance(a)/4
+		local moveStat = math.min(70,getEvasion(a)/10)
+		local defStat = math.min(5,getDefense(a))
+		local acc = getAccuracyChance(a)/3
 		local dos = {
 			{chance=480-acc, 	turn_miss },
 			--{chance=200, 	turn_moreatk},
 			--{chance=200, 	turn_moredef},
-			{chance=350, 	turn_heal},
-			{chance=250 -  moveStat*2, 	turn_confuse},
-			{chance=190, 	turn_true},
-			{chance=150+ moveStat*2, 	turn_adrenalline },
+			{chance=150+ defStat * 2, 	turn_heal  }, 
+			{chance=250 	-  moveStat*2, 	turn_confuse},
+			{chance=190+moveStat, 	turn_true},
+			{chance=150		+ moveStat*2, 	turn_adrenalline },
 			{chance=1000 , 	turn_attack},
 		}
 
@@ -3312,7 +4283,7 @@ function probabilities(fulano, ciclano, an, bn)
 	
 	local wa = 0
 	local wb = 0
-	for i=1,50 do 
+	for i=1,500 do 
 		a.n = an
 		b.n = bn
 		a.hm = maxHealth(a)
@@ -3462,5 +4433,4 @@ b = {  a = 17,
 }
 local e = battle(b,a, "Renato", "Mock")
 print(e)]]
-
 
